@@ -1,10 +1,22 @@
 venv/
 .idea/
 logs/
+tmp/
+__pycache__/
+*.py[cod]
 .env.local
 .env
 checkpoints
 .vercel
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+data/json/champion_stats/
+data/json/live_probe/
+data/json/pro_stats/
+data/json/ai_provider_config.json
+tmp_*
 static/saved_model/BILSTM_Att.pt
 .tmp/
 riot.txt
@@ -14,3 +26,4 @@ riot.txt
 /static/temp6.png
 /static/temp7.png
 /static/temp8.png
+/static/sqlpub.png

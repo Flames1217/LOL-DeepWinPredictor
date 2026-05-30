@@ -11,372 +11,257 @@ pinned: false
 
 ![LOL-DeepWinPredictor](https://socialify.git.ci/Viper373/LOL-DeepWinPredictor/image?description=1&font=Source+Code+Pro&forks=1&issues=1&logo=https%3A%2F%2Fimg.viper3.top%2FLOL-DeepWinPredictor%2Flogo.png&name=1&owner=1&pulls=1&stargazers=1&theme=Light)
 
-# 🎮 基于深度学习的英雄联盟胜率预测
+# LOL-DeepWinPredictor
 
-[![Python](https://img.shields.io/badge/Python-3.10.7+-blue.svg)](https://www.python.org/) [![PyTorch](https://img.shields.io/badge/PyTorch-2.3.0-red.svg)](https://pytorch.org/) [![Flask](https://img.shields.io/badge/Flask-3.0.3-green.svg)](https://flask.palletsprojects.com/)
-![GitHub last commit](https://img.shields.io/github/last-commit/Viper373/LOL-DeepWinPredictor) ![Hugging Face Space Status](https://img.shields.io/badge/Space-Status-brightgreen) [![HuggingFace Spaces](https://img.shields.io/badge/Hugging%20Face-🤗-yellow?logo=huggingface)](https://huggingface.co/spaces/Viper373/LOL-DeepWinPredictor?badge=README) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Viper373/LOL-DeepWinPredictor/total)
+基于职业赛事数据、英雄分路数据和本地深度学习模型的 League of Legends 胜率预测与赛事分析系统。
 
----
+当前版本已经迁移到 **FastAPI + Next.js 静态前端**，并补充了 OP.GG Esports、101.qq.com、lpl.qq.com 的职业赛事、战队、选手、英雄和赛程数据同步能力。项目仍保留原始 BiLSTM-Attention 模型，同时提供校准预测、AI 提供商配置、职业赛程预测、小场预测与 LPL 实时数据探测入口。
 
-## 目录
-- [项目简介](#项目简介)
-- [主要功能](#主要功能)
-- [技术栈](#技术栈)
-- [项目结构](#项目结构)
-- [在线体验](#在线体验)
-- [部署与使用](#部署与使用)
-  - [使用已有模型（本地快速体验）](#使用已有模型本地快速体验)
-  - [自行训练模型](#自行训练模型)
-  - [云数据库注册](#云数据库注册)
-  - [Hugging Face Spaces Docker 部署（推荐）](#hugging-face-spaces-docker-部署推荐)
-  - [其他平台](#其他平台)
-- [贡献指南](#贡献指南)
-- [TODO](#todo)
-- [常见问题](#常见问题)
-- [联系方式](#联系方式)
-- [自动化与CI/CD](#自动化与ci/cd)
+## 功能概览
 
----
-
-## 项目简介
-
-本项目为本人毕业设计
-
-论文题目：《基于深度学习的英雄联盟比赛胜率预测的研究》
-
-院校：北京石油化工学院
-
-专业：大数据管理与应用
-
-年级：2020级
-
-旨在通过深度学习技术预测英雄联盟（LOL）比赛的胜率，为玩家、教练和分析师提供数据支持。通过分析双方阵容选择，结合英雄特性和历史数据，模型能够给出较为准确的胜率预测。
-> [!TIP]
-> 
-> 由于数据集和模型文件较大，完整的项目文档和部署指南已迁移至Hugging Face平台。请访问 [Hugging Face](https://huggingface.co/spaces/Viper3733/LOL-DeepWinPredictor/tree/main) 获取完整信息。
----
-
-## 主要功能
-- 阵容分析、胜率预测、可视化展示、英雄搜索、数据更新、异步处理、响应式设计
-- 🌵**创新模型架构**：双向LSTM（BiLSTM_Att）+注意力机制
-- 📊**大规模数据集**：5w+条职业比赛与表演赛数据
-- 🎯**高精度预测**：准确率、精确率、召回率、F1分数均约95%
-- 🖥️**用户友好界面**：Web界面，输入阵容即可预测
-
----
+- 阵容胜率预测：输入蓝红双方队伍、英雄和分路后，输出校准后的胜率、置信度和胜方。
+- 职业赛程：按赛区和日期查看比赛，支持已结束比赛回测、未赛比赛预测、LPL 官方详情链接和 OP.GG 详情链接。
+- 小场预测：支持对 BO 系列中的单局比赛按 BP 阵容预测，并在有赛后小场数据时做回测校正。
+- 英雄数据：同步 OP.GG 与 101.qq.com 的英雄排行、分路、段位、禁用率、登场率、热度、胜率、对位、符文、召唤师技能、出装和技能信息。
+- 战队数据：同步 OP.GG Esports 与 LPL 官方战队统计，包括排名、胜负、KDA、经济、击杀、近期比赛、赛程和队员信息。
+- 选手数据：同步职业选手列表、排行榜、队伍、位置、KDA、DPM、GPM、参团率、常用英雄和详情面板。
+- AI 提供商：独立页面配置 Base URL、API Key、模型名、启用状态和测试调用，用于赛前/赛中解释与分析。
+- LPL 实时探测：提供候选比赛和探测入口，用于尝试抓取 LPL 官方实时事件/状态数据，为后续实时胜率曲线做准备。
+- 模型诊断：展示本地模型加载状态、特征维度、校准策略、已知问题和下一步训练方向。
 
 ## 技术栈
 
-**后端**：Python、PyTorch、Flask、RocketMQ、MySQL  
-**前端**：HTML5、CSS3、JavaScript、jQuery UI、ECharts、Fuse.js
-
----
+| 层级 | 技术 |
+| --- | --- |
+| 后端 API | FastAPI, Uvicorn, Python |
+| 模型推理 | PyTorch, BiLSTM-Attention |
+| 前端 | Next.js, React, TypeScript, Tailwind CSS, Radix UI |
+| 数据源 | OP.GG Esports, OP.GG Champion Stats, 101.qq.com, lpl.qq.com |
+| 数据存储 | 本地 JSON 缓存, MySQL, MongoDB 可选 |
+| 可选 AI | OpenAI 兼容接口，支持自定义 Base URL 与 API Key |
 
 ## 项目结构
 
-```plaintext
+```text
 .
-├── api/                    # API服务
-│   ├── app.py              # Flask主入口
-├── main.py                 # 数据全流程自动化主入口
-├── requirements.txt        # 依赖包列表
-├── vercel.json             # Vercel部署配置
-├── README.md               # 项目说明文件
-├── .env.example            # 环境变量示例
-├── .env.local              # 本地环境变量
-├── BILSTM_Att/             # 深度学习模型与推理相关
-│   ├── BILSTM_Att.py       # BiLSTM_Att模型结构
-│   ├── train.py            # 模型训练脚本
-│   ├── predict.py          # 单次预测脚本
-│   ├── test.py             # 模型测试脚本
-│   └── BILSTM_Att.pt       # 训练好的模型权重
-├── Data_CrawlProcess/      # 数据爬取与处理
-├── data/                   # 数据文件
-├── static/                 # 前端静态资源
-├── templates/              # Jinja2模板
-├── tool_utils/             # 工具类
-├── logs/                   # 日志输出目录
-└── ...
+├── api/
+│   ├── app.py                 # FastAPI 入口，兼容旧接口并服务前端静态页面
+│   └── ai_prediction.py       # AI 提供商配置、保存和调用逻辑
+├── BILSTM_Att/                # BiLSTM-Attention 模型、训练和预测脚本
+├── Data_CrawlProcess/
+│   ├── champion_stats_sync.py # OP.GG/101 英雄数据同步与缓存
+│   ├── team_player_stats_sync.py
+│   │                           # OP.GG Esports/LPL 战队、选手、赛程、比赛详情同步
+│   └── lpl_live_probe.py      # LPL 实时数据探测
+├── frontend/
+│   ├── app/                   # Next.js 页面
+│   ├── components/            # UI 与业务组件
+│   ├── lib/                   # API client、类型、工具函数
+│   └── public/                # 图标和旧资源副本
+├── old_frontend/              # 旧版静态前端备份
+├── scripts/
+│   └── probe_lpl_live.py      # 命令行 LPL 实时探测
+├── data/json/                 # 本地数据和同步缓存
+├── static/saved_model/        # 本地模型权重目录
+└── requirements.txt
 ```
 
----
+## 快速开始
 
-## 在线体验
-✅[Huggingface Space 部署+CF反代](https://lol.viper3.us.kg/)
+### 1. 克隆项目
 
-![在线演示界面](static/images/index_1.png)
-
----
-
-## 部署与使用
-
-### 使用已有模型（本地快速体验）
-
-1. 克隆项目
-   ```bash
-   git clone https://github.com/Viper373/LOL-DeepWinPredictor.git
-   cd LOL-DeepWinPredictor
-   ```
-2. 安装依赖（建议虚拟环境）
-   ```bash
-   python -m venv venv
-   # Windows
-   venv/Scripts/activate
-   # Linux/Mac
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-3. 配置环境变量
-   复制 `.env.example` 为 `.env.local`，填写变量值。
-4. 启动 Web 服务
-   ```bash
-   python -m api.app
-   # 访问 http://127.0.0.1:5000
-   ```
-
-### 自行训练模型
-
-1. 克隆项目并安装依赖（同上）
-2. 配置所有环境变量（详见 `.env.example`）
-3. 采集全部数据
-   ```bash
-   python main.py
-   ```
-4. 训练模型
-   - 调整 `BILSTM_Att/train.py` 中的模型参数，随后训练模型
-   ```bash
-   python BILSTM_Att/train.py
-   ```
-5. 模型部署
-   - 训练完成后，将生成的模型文件重命名为 `BILSTM_Att.pt`，移动至 `static/saved_model/` 目录下。
-6. 启动 Web 服务（同上）
-
-### 云数据库注册
-
-云端部署前需先注册云端免费数据库，获取环境变量所需值：
-
-| 平台                                                                                                              | 数据库类型   | 注册地址                                                     | 注册教程                                |
-|-----------------------------------------------------------------------------------------------------------------|---------|----------------------------------------------------------|-------------------------------------|
-| ![SQLPub logo](https://sqlpub.com/logo.svg) SQLPub                                                              | MySQL   | https://sqlpub.com/                                      | https://www.appmiu.com/30458.html   |
-| ![MongoDB Atlas logo](https://webassets.mongodb.com/_com_assets/cms/mongodb_logo1-76twgcu2dm.png) MongoDB Atlas | MongoDB | https://account.mongodb.com/account/login?signedOut=true | https://blog.aqcoder.cn/posts/b267/ |
-
-### Hugging Face Spaces Docker 部署（推荐）
-
-1. Duplicate this Space
-2. 配置环境变量
-   复制 `.env.example` 为 `.env.local`，填写变量值。
-3. 等待构建完成，访问 Space 即可体验
-
-### 其他平台
-
-本项目已适配主流云平台，支持一键部署：
-
-| 平台                 | 部署                                                                                                                                                                                                                                                       | 状态 |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----|
-| Vercel             | [一键部署](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FViper373%2FLOL-DeepWinPredictor&env=MYSQL_HOST,MYSQL_PORT,MYSQL_USER,MYSQL_PASSWORD,MYSQL_DATABASE&project-name=lol-deepwinpredictor&repository-name=LOL-DeepWinPredictor) | ❌  |
-| Netlify            | [一键部署](https://app.netlify.com/start/deploy?repository=https://github.com/Viper373/LOL-DeepWinPredictor)                                                                                                                                                 | ❌  |
-| HuggingFace Spaces | [体验](https://huggingface.co/spaces/Viper373/LOL-DeepWinPredictor)                                                                                                                                                                                        | ✅  |
-| Koyeb              | [一键部署](https://app.koyeb.com/deploy?type=git&repository=github.com/Viper373/LOL-DeepWinPredictor)                                                                                                                                                        | ✅  |
-
-### GitHub 仓库环境变量设置
-
-在 GitHub Actions 或云端部署时，需要在仓库的 Settings → Secrets and variables → Actions 中添加以下环境变量（参考 `.env.example` 文件）：
-
-| 变量名           | 说明             | 是否必填 |
-|----------------|----------------|--------|
-| MYSQL_HOST     | MySQL主机地址    | 必填   |
-| MYSQL_PORT     | MySQL端口        | 必填   |
-| MYSQL_USER     | MySQL用户名      | 必填   |
-| MYSQL_PASSWORD | MySQL密码        | 必填   |
-| MYSQL_CHARSET  | MySQL字符集      | 必填   |
-| MYSQL_DATABASE | MySQL数据库名    | 必填   |
-| MONGO_URI      | MongoDB连接URI   | 必填   |
-| PROXY          | 代理配置（JSON字符串，例：{'http': 'http://127.0.0.1:7890', 'https': 'http://127.0.0.1:7890'}） | 可选   |
-| GH_TOKEN   | GitHub访问令牌（用于自动发布Release） | 必填   |
-| HF_TOKEN   | Hugging Face 访问令牌（用于自动同步数据到 HF Space） | 可选   |
-
-> ⚠️ 代理配置（PROXY）为可选项，若部署环境无法直接访问外网或有特殊网络需求时可设置。
-
----
-
-### GitHub Actions 自动化数据集更新
-
-本项目已集成 GitHub Actions 工作流（见 `.github/workflows/main.yml`），支持：
-- **定时自动运行**：每周日 0点自动拉取和更新数据集。
-- **手动触发**：可在 GitHub Actions 页面点击手动运行。
-
-- **（可选）自动同步到 Hugging Face Space**：若已在仓库 Secrets 配置 `HF_TOKEN`，工作流会在将变更推送到 GitHub 后，自动把更新内容（保持原路径结构）同步到 `spaces/Viper3733/LOL-DeepWinPredictor`。
-
-获取并配置 `HF_TOKEN`：
-- 在 Hugging Face 设置页面创建 Token（`https://huggingface.co/settings/tokens`），授予 write 权限。
-- 在 GitHub 仓库 Settings → Secrets and variables → Actions 中新增 Secret：`HF_TOKEN`。
-
-只需在仓库设置好环境变量，GitHub Actions 会自动完成数据采集与更新，无需手动操作服务器。
-
----
-
-## 自动化与CI/CD
-
-本项目集成了 GitHub Actions 自动化流程，实现了数据集自动更新与 Release 自动发布，无需手动操作服务器。
-
-### 1. 数据集自动更新（main.yml）
-- **定时任务**：每周日 0 点自动运行，拉取和更新数据集。
-- **手动触发**：可在 GitHub Actions 页面点击手动运行。
-- **自动提交**：如有数据变更，自动 commit 并推送到 main 分支。
-
-**核心流程（main.yml）**：
-```yaml
-on:
-  schedule:
-    - cron: '0 0 * * 0'
-  workflow_dispatch:
-jobs:
-  run-main:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: 设置 Python 环境
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: 安装依赖
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: 运行 main.py
-        env:
-          # ...数据库和代理相关环境变量...
-        run: |
-          python main.py
-      - name: 配置 Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-      - name: 检查变更并提交
-        run: |
-          git add .
-          git diff --cached --quiet || git commit -m "数据自动更新"
-      - name: 推送变更
-        run: |
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```bash
+git clone https://github.com/Viper373/LOL-DeepWinPredictor.git
+cd LOL-DeepWinPredictor
 ```
 
-### 2. 自动发布 Release（release.yml）
-- **触发时机**：main 分支有 push 时自动触发。
-- **自动生成 Release Notes**：基于本次 push 的所有变更，调用 AI 自动生成标准 Markdown 格式的发布日志。
-- **自动打 tag 并发布 Release**：版本号自动递增，无需人工干预。
+### 2. 安装 Python 依赖
 
-**核心流程（release.yml）**：
-```yaml
-on:
-  push:
-    branches:
-      - main
-jobs:
-  auto-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code with full history
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: 安装 jq
-        run: sudo apt-get install -y jq
-      - name: 生成 diff
-        run: |
-          BEFORE_SHA=$(jq -r '.before' "$GITHUB_EVENT_PATH")
-          AFTER_SHA=$(jq -r '.after' "$GITHUB_EVENT_PATH")
-          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            BEFORE_SHA=$(git rev-list --max-parents=0 HEAD)
-          fi
-          git diff --patch $BEFORE_SHA..$AFTER_SHA > changes.diff
-      - name: 生成下一个 tag
-        id: get_tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
-          # ...自动递增版本号逻辑...
-      - name: AI 生成 Release Notes
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: |
-          PROMPT='请根据以下代码差异生成符合 GitHub Release 标准的 changelog，要求：\n1. 使用 ### 分类标题\n2. 每项添加合适 emoji\n3. 简明扼要描述变更\n4. 不要使用代码块（三个反引号包裹）\n5. 输出语言为中文\n\n示例格式：\n### 新增功能\n- ✨ 新增了用户注册功能\n...\n代码差异：\n'
-          DIFF_CONTENT=$(cat changes.diff)
-          FULL_PROMPT="$PROMPT$DIFF_CONTENT"
-          JSON_PROMPT=$(printf "%s" "$FULL_PROMPT" | jq -Rs .)
-          echo "{\"model\": \"x-ai/grok-4-fast:free\", \"messages\": [{\"role\": \"user\", \"content\": $JSON_PROMPT}]}" > request.json
-          response=$(curl -s https://openrouter.ai/api/v1/chat/completions  \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-            --data-binary @request.json)
-          generated_notes=$(echo "$response" | jq -e -r '.choices[0].message.content') || { echo "AI返回内容解析失败"; exit 3; }
-          if [ -z "$generated_notes" ]; then
-            echo "AI未生成内容"; exit 4;
-          fi
-          echo "$generated_notes" > release_note.txt
-      - name: Create tag and release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git tag ${{ steps.get_tag.outputs.tag }}
-          git push origin ${{ steps.get_tag.outputs.tag }}
-          note="$(cat release_note.txt)"
-          gh release create ${{ steps.get_tag.outputs.tag }} --notes "$note" --title "${{ steps.get_tag.outputs.tag }}"
+建议使用 Python 3.10+。
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-### 3. 环境变量与 Secrets 配置
-- 在 GitHub 仓库 Settings → Secrets and variables → Actions 中添加：
-  - `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`、`MONGO_URI`、`PROXY`（如需代理）、`GITHUB_TOKEN`、`OPENROUTER_API_KEY`（如需 AI 生成 Release Notes）等。
-- 参考 `.env.example` 文件。
+### 3. 安装并构建前端
 
-### 4. 常见注意事项
-- **AI Release Notes** 需保证 `OPENROUTER_API_KEY` 有效，否则发布日志会失败。
-- 自动化流程会覆盖 main 分支的内容，请勿在 main 上直接开发。
-- 如需自定义自动化逻辑，可修改 `.github/workflows/main.yml` 和 `.github/workflows/release.yml`。
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
 
----
+后端会优先服务 `frontend/out`，所以生产模式或本地完整体验都建议先构建前端。
 
-## 贡献指南
+### 4. 启动服务
 
-1. 提交问题：使用GitHub Issues报告bug或建议
-2. 提交代码：Fork仓库，创建分支，提交PR
-3. 代码规范：遵循PEP8，添加注释和文档，确保测试通过
+```bash
+python -m api.app
+```
 
----
+默认访问地址：
 
-## TODO
+- Web UI: http://127.0.0.1:5000
+- API 文档: http://127.0.0.1:5000/docs
 
-- [ ] 调整参数，添加Counter数据重新训练（当前模型部分过拟合）
-- [ ] Next.js前端重构
-- [ ] 英雄数据展示（BAN、PICK、WinRate）
-- [ ] 战队数据展示
-- [ ] 选手数据展示
-- [ ] LPL未来 / 历史比赛展示
-- [ ] LCK、LEC、LCS等其他赛区数据及功能
-- [ ] 前端结果导出
+可选端口配置：
 
----
+```bash
+set PORT=8000
+python -m api.app
+```
 
-## 常见问题
+## 环境变量
 
-- **Q: 云端部署时模型文件如何处理？**
-  - A: 云端（如 Hugging Face）无法训练模型，需在本地训练好后，重命名为 `BILSTM_Att.pt` 上传到 `static/saved_model/` 目录。
-- **Q: 其他平台（如 Vercel、Netlify）能否用？**
-  - A: 理论支持，但受限于依赖体积和运行环境，推荐 Hugging Face Spaces Docker 部署。
-- **Q: 数据库如何配置？**
-  - A: 参考 `.env.example`，可用 SQLPub、MongoDB Atlas 等云数据库。
+项目会读取 `.env.local` 或 `.env`。本地开发时不要提交真实密钥。
 
----
+| 变量 | 说明 | 必填 |
+| --- | --- | --- |
+| MYSQL_HOST | MySQL 地址 | 可选 |
+| MYSQL_PORT | MySQL 端口 | 可选 |
+| MYSQL_USER | MySQL 用户名 | 可选 |
+| MYSQL_PASSWORD | MySQL 密码 | 可选 |
+| MYSQL_DATABASE | MySQL 数据库名 | 可选 |
+| MONGO_URI | MongoDB 连接地址 | 可选 |
+| PROXY | 请求外部源站时使用的代理配置 | 可选 |
+| HOST | FastAPI 监听地址，默认 `0.0.0.0` | 可选 |
+| PORT | FastAPI 端口，默认 `5000` | 可选 |
+| AI_PROVIDER | AI 提供商名称 | 可选 |
+| AI_BASE_URL | OpenAI 兼容接口 Base URL | 可选 |
+| AI_API_KEY | AI API Key | 可选 |
+| AI_MODEL | AI 模型名 | 可选 |
 
-## 联系方式
+AI 配置也可以在前端“AI 提供商”页面保存到本地配置文件。配置文件默认位于 `data/json/ai_provider_config.json`，该文件已加入 `.gitignore`。
 
-如有任何问题，请联系项目作者（打上备注：LOL-DeepWinPredictor）。
+## 常用 API
 
-- 🥗E-mail: 2483523414@qq.com
-- 🍟WeChat: Viper373
-- 🍔QQ: 2483523414
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/query_win_rate` | 查询 OP.GG 英雄排行数据 |
+| GET | `/query_cn_win_rate` | 查询 101.qq.com 英雄排行数据 |
+| GET | `/query_champion_detail` | 查询英雄详情、对位、符文、出装等数据 |
+| GET | `/query_pro_leagues` | 查询职业赛区 |
+| GET | `/query_pro_schedule` | 查询职业赛程 |
+| GET | `/query_pro_match_detail` | 查询比赛详情 |
+| GET | `/query_team_stats` | 查询战队统计 |
+| GET | `/query_player` | 查询选手列表 |
+| GET | `/query_player_detail` | 查询选手详情 |
+| POST | `/predict` | 阵容胜率预测 |
+| POST | `/predict_pro_match` | 职业比赛 BO 预测 |
+| POST | `/predict_pro_game` | 单局小场预测与回测 |
+| POST | `/live_prediction` | 手动实时状态预测 |
+| GET/POST | `/lpl_live_probe/run` | LPL 实时数据源探测 |
+| GET/POST | `/ai_prediction_config` | AI 提供商配置读取/保存 |
+| POST | `/ai_prediction_test` | AI 提供商连通性测试 |
+| GET | `/model_diagnostics` | 模型诊断信息 |
+
+## 数据同步
+
+英雄、战队、选手和赛程接口默认会优先读取本地缓存，并在需要时触发同步。
+
+也可以手动触发：
+
+```bash
+# 英雄数据
+curl -X POST "http://127.0.0.1:5000/champion_stats_sync/run?region=global&tier=all"
+
+# 职业战队/选手/赛程
+curl -X POST "http://127.0.0.1:5000/pro_stats_sync/run?league=LPL"
+
+# LPL 实时探测
+python scripts/probe_lpl_live.py
+```
+
+缓存目录：
+
+- `data/json/champion_stats/`
+- `data/json/pro_stats/`
+- `data/json/live_probe/`
+
+这些缓存目录默认不提交到 git，避免把源站临时结果和本地抓取状态混进代码版本。
+
+## 模型说明
+
+原始模型是 BiLSTM-Attention，输入双方队伍与英雄 BP 特征后输出胜率。当前版本对原始输出做了校准：
+
+- 阵容预测会融合队伍强度、英雄分路胜率先验和模型输出。
+- 职业 BO 预测会融合 OP.GG/LPL 的战队近期统计。
+- 小场预测会先按 BP 阵容给出赛前判断；如果比赛详情中已有击杀、经济、资源、时长等小场数据，会额外输出 `liveAdjustedAWin/liveAdjustedBWin` 和 `backtest`。
+
+因此，已结束比赛里可能出现“赛前预测错、赛后状态校正命中”的情况。这不是接口错误，而是当前模型没有把最终比分当作输入，真正赛前预测只能基于赛前 BP 和历史强度。
+
+## AI 提供商与实时预测
+
+AI 提供商用于解释和总结，不建议直接让大模型决定最终胜率。推荐用法：
+
+1. 本地模型或规则模型给出概率。
+2. AI 根据队伍状态、BP、版本、选手和实时事件生成解释。
+3. 赛中实时预测优先依赖结构化事件流，例如经济差、人头差、大小龙、防御塔、装备和时长。
+
+当前已提供：
+
+- AI 配置页面。
+- 提供商连通性测试。
+- 手动实时状态预测接口。
+- LPL 官方实时数据探测入口。
+
+真正稳定的自动实时胜率曲线仍需要长期采集 LPL 实时事件并重新训练时间序列模型。
+
+## 开发命令
+
+```bash
+# 后端语法检查
+python -m py_compile api/app.py
+
+# 前端类型检查
+cd frontend
+npx tsc --noEmit
+
+# 前端生产构建
+npm run build
+
+# 启动 FastAPI
+cd ..
+python -m api.app
+```
+
+## 发布流程
+
+```bash
+git status
+python -m py_compile api/app.py
+cd frontend && npx tsc --noEmit && npm run build && cd ..
+git add .
+git commit -m "Release: FastAPI migration and pro data workflows"
+git push origin main
+gh release create <tag> --title "<title>" --notes "<release notes>"
+```
+
+发布前请确认没有提交：
+
+- `.env.local`
+- `data/json/ai_provider_config.json`
+- `frontend/node_modules/`
+- `frontend/out/`
+- `frontend/.next/`
+- 抓取缓存和日志目录
+
+## 注意事项
+
+- OP.GG、101.qq.com、lpl.qq.com 页面结构和接口可能变化，同步逻辑需要随源站更新维护。
+- 如果源站有 WAF 或频率限制，优先做缓存、退避、代理和合规限频，不要在前端阻塞式反复请求。
+- 当前训练模型存在过拟合和校准不足的问题；严肃预测应重新构建样本、加入更多赛中和版本特征，并按赛季/版本做验证集切分。
+- 所有 API Key、Cookie、Token 都不应提交到仓库。
+
+## License
+
+本项目用于学习、研究和数据分析展示。使用第三方源站数据时请遵守对应网站的服务条款。

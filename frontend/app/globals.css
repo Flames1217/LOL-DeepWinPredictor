@@ -1,0 +1,201 @@
+﻿@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: 'DeepWinLegacy';
+  src: url('/legacy/font/ShanHaiJiGuMingKe-YaZhiBan.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  /* LOL Esports Dark Theme - 鍗堝钃濋粦鑳屾櫙 */
+  --background: #0A0E1A;
+  --foreground: #E8E6E3;
+  --card: #0F1422;
+  --card-foreground: #E8E6E3;
+  --popover: #0F1422;
+  --popover-foreground: #E8E6E3;
+
+  /* 涓昏壊璋?- 钃濊壊 */
+  --primary: #0BC4E3;
+  --primary-foreground: #0A0E1A;
+
+  /* 娆¤鑹茶皟 - 閲戣壊 */
+  --secondary: #C89B3C;
+  --secondary-foreground: #0A0E1A;
+
+  --muted: #1A1F2E;
+  --muted-foreground: #8B8D91;
+  --accent: #1E2436;
+  --accent-foreground: #E8E6E3;
+
+  /* 绾㈣壊 - 鐢ㄤ簬绾㈡柟闃熶紞 */
+  --destructive: #FF4D4D;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #2A3041;
+  --input: #1A1F2E;
+  --ring: #0BC4E3;
+
+  /* 鑳滅巼棰滆壊绯荤粺 */
+  --win-high: #00D563;
+  --win-mid: #F0C93A;
+  --win-low: #FF4D4D;
+
+  /* 闃熶紞棰滆壊 */
+  --team-blue: #0BC4E3;
+  --team-red: #E84057;
+
+  /* 閲戣壊楂樹寒 */
+  --gold: #C89B3C;
+  --gold-glow: rgba(200, 155, 60, 0.4);
+
+  /* 鍥捐〃棰滆壊 */
+  --chart-1: #0BC4E3;
+  --chart-2: #C89B3C;
+  --chart-3: #00D563;
+  --chart-4: #E84057;
+  --chart-5: #9B6AE3;
+
+  --radius: 0.625rem;
+
+  --sidebar: #0A0E1A;
+  --sidebar-foreground: #E8E6E3;
+  --sidebar-primary: #0BC4E3;
+  --sidebar-primary-foreground: #0A0E1A;
+  --sidebar-accent: #1A1F2E;
+  --sidebar-accent-foreground: #E8E6E3;
+  --sidebar-border: #2A3041;
+  --sidebar-ring: #0BC4E3;
+}
+
+@theme inline {
+  --font-sans: 'DeepWinLegacy', 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+  --font-serif: 'DeepWinLegacy', 'Microsoft YaHei', 'PingFang SC', serif;
+  --font-mono: 'Geist Mono', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background:
+      linear-gradient(rgba(10, 14, 26, 0.88), rgba(10, 14, 26, 0.9)),
+      url('/legacy/images/background.jpg') center / cover fixed no-repeat;
+  }
+}
+
+/* 鍏竟褰㈢汗鐞嗚儗鏅?*/
+.hexagon-pattern {
+  background-image:
+    linear-gradient(rgba(10, 14, 26, 0.76), rgba(10, 14, 26, 0.82)),
+    url('/legacy/images/background.jpg'),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cpath fill='%23C89B3C' fill-opacity='0.05' d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L28 15v-2.31l-11-6.35V0h-2zm0 49v-8l12.99-7.5v2.31l-11 6.35V49h-2z'/%3E%3C/svg%3E");
+  background-size: auto, cover, 28px 49px;
+  background-position: center, center, top left;
+  background-attachment: fixed, fixed, scroll;
+}
+
+/* 閲戣壊杈规鍏夋檿鏁堟灉 */
+.card-hover-glow {
+  transition: all 0.3s ease;
+}
+.card-hover-glow:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px var(--gold-glow), inset 0 0 10px rgba(200, 155, 60, 0.1);
+}
+
+/* 鑳滅巼杩涘害鏉℃笎鍙?*/
+.win-rate-high {
+  background: linear-gradient(90deg, #00D563, #00A84B);
+}
+.win-rate-mid {
+  background: linear-gradient(90deg, #F0C93A, #D4A82F);
+}
+.win-rate-low {
+  background: linear-gradient(90deg, #FF4D4D, #CC3D3D);
+}
+
+/* 鏁板瓧婊氬姩鍔ㄧ敾 */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: countUp 0.5s ease-out forwards;
+}
+
+/* 楠ㄦ灦灞忓姩鐢?*/
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #1A1F2E 25%, #2A3041 50%, #1A1F2E 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* 鑷畾涔夋粴鍔ㄦ潯 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* 浣嶇疆鍥炬爣鍩虹鏍峰紡 */
+.role-icon {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
