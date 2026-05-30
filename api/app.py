@@ -19,8 +19,10 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 
 try:
     from ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config
+    from model_storage import resolve_model_path
 except ModuleNotFoundError:
     from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config
+    from api.model_storage import resolve_model_path
 from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
 from Data_CrawlProcess import env
 from Data_CrawlProcess.champion_stats_sync import (
@@ -249,12 +251,10 @@ HERO_BY_ALIAS = {
     if isinstance(hero, dict) and hero.get('alias')
 }
 
-MODEL_LOCAL_PATH = os.path.join(MODEL_DIR, 'BILSTM_Att.pt')
-if not os.path.exists(MODEL_LOCAL_PATH):
-    rich_logger.error(f"model file not found: {MODEL_LOCAL_PATH}")
-    raise FileNotFoundError(f"model file not found: {MODEL_LOCAL_PATH}")
-
+MODEL_LOCAL_PATH = resolve_model_path(os.path.join(MODEL_DIR, 'BILSTM_Att.pt'), rich_logger)
 try:
+    if not os.path.exists(MODEL_LOCAL_PATH):
+        raise FileNotFoundError(f"model file not found: {MODEL_LOCAL_PATH}")
     model = BiLSTMModelWithAttention(input_size=32, hidden_size=1024, num_layers=2, output_size=1)
     model.load_state_dict(torch.load(MODEL_LOCAL_PATH, map_location=torch.device('cpu'), weights_only=True))
     model.eval()

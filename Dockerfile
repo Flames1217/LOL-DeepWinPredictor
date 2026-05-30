@@ -11,11 +11,9 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 COPY --chown=user . /app
 
-# 设置Flask环境变量
-ENV FLASK_APP=api/app.py
-ENV FLASK_RUN_PORT=7860
 ENV PYTHONPATH=/app
+ENV PORT=7860
 
 EXPOSE 7860
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=7860"] 
+CMD ["python", "-m", "api.app"]

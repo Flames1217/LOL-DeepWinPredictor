@@ -1,14 +1,3 @@
----
-title: LOL-DeepWinPredictor
-emoji: 🎮
-colorFrom: blue
-colorTo: yellow
-sdk: docker
-sdk_version: "1.0"
-app_file: api/app.py
-pinned: false
----
-
 ![LOL-DeepWinPredictor](https://socialify.git.ci/Viper373/LOL-DeepWinPredictor/image?description=1&font=Source+Code+Pro&forks=1&issues=1&logo=https%3A%2F%2Fimg.viper3.top%2FLOL-DeepWinPredictor%2Flogo.png&name=1&owner=1&pulls=1&stargazers=1&theme=Light)
 
 # LOL-DeepWinPredictor
@@ -139,8 +128,80 @@ python -m api.app
 | AI_BASE_URL | OpenAI 兼容接口 Base URL | 可选 |
 | AI_API_KEY | AI API Key | 可选 |
 | AI_MODEL | AI 模型名 | 可选 |
+| MODEL_PATH | 本地模型路径，默认 `static/saved_model/BILSTM_Att.pt` | 可选 |
+| MODEL_URL | 远程模型 HTTPS URL，本地模型不存在时下载 | 可选 |
+| S3_MODEL_URL | S3/R2/OSS 公网或预签名模型 URL | 可选 |
+| WEBDAV_MODEL_URL | WebDAV 直连模型文件 URL | 可选 |
+| MODEL_CACHE_DIR | 远程模型下载后的缓存目录，Serverless 默认 `/tmp/lol-deepwin-models` | 可选 |
+| MODEL_FILENAME | 缓存模型文件名，默认从 URL 推断 | 可选 |
+| MODEL_SHA256 | 模型 sha256 校验值 | 可选 |
+| WEBDAV_USERNAME / WEBDAV_PASSWORD | WebDAV Basic Auth | 可选 |
+| MODEL_BASIC_AUTH_USER / MODEL_BASIC_AUTH_PASSWORD | 受保护 HTTP 模型地址的 Basic Auth | 可选 |
+| NEXT_PUBLIC_API_BASE_URL | 前后端分离部署时的后端 API 域名 | 可选 |
 
 AI 配置也可以在前端“AI 提供商”页面保存到本地配置文件。配置文件默认位于 `data/json/ai_provider_config.json`，该文件已加入 `.gitignore`。
+
+## Vercel / S3 / WebDAV 部署
+
+推荐部署形态是：**前端上 Vercel，FastAPI 后端上支持常驻进程的平台，模型放 S3/R2/OSS 或 WebDAV**。
+
+原因是本项目后端包含 PyTorch、模型下载、数据同步、外站请求和缓存逻辑。Vercel 的 Python Functions 可以运行 FastAPI，但它更适合轻量 Serverless API；对于 PyTorch 冷启动、大模型权重、外站同步和临时缓存，这类平台会更容易遇到函数体积、冷启动、执行时长和临时文件限制。
+
+### 方案 A：前端 Vercel + 独立 FastAPI 后端
+
+这是最稳的方案。
+
+1. 在 Vercel 新建项目，Root Directory 选择 `frontend`。
+2. Build Command 使用 `npm run build`。
+3. Output Directory 使用 `out`。
+4. 配置前端环境变量：
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com
+```
+
+5. 后端部署到 Render、Railway、Fly.io、Koyeb、Docker VPS 或其他支持常驻 Python 服务的平台。
+6. 后端配置模型远程地址：
+
+```bash
+MODEL_URL=https://cdn.example.com/models/BILSTM_Att.pt
+MODEL_SHA256=<optional_sha256>
+```
+
+S3/R2/OSS 推荐使用公开只读 URL、CloudFront/CDN URL 或预签名 URL：
+
+```bash
+S3_MODEL_URL=https://bucket.s3.amazonaws.com/models/BILSTM_Att.pt
+```
+
+WebDAV：
+
+```bash
+WEBDAV_MODEL_URL=https://webdav.example.com/models/BILSTM_Att.pt
+WEBDAV_USERNAME=your_user
+WEBDAV_PASSWORD=your_password
+```
+
+### 方案 B：后端也尝试 Vercel Python Functions
+
+可以尝试，但不建议作为主生产方案。注意：
+
+- 不要把 `static/saved_model/BILSTM_Att.pt` 提交进仓库。
+- 必须配置 `MODEL_URL` / `S3_MODEL_URL` / `WEBDAV_MODEL_URL`。
+- 缓存目录只能依赖临时目录，冷启动时可能重新下载模型。
+- 数据同步和实时探测不要依赖后台常驻任务，应该改为手动触发或外部定时任务。
+- 如果模型下载和 PyTorch 初始化导致冷启动过慢，需要把推理服务拆到常驻后端。
+
+### Docker / 常驻后端
+
+当前 Dockerfile 已改成 FastAPI 启动方式：
+
+```bash
+docker build -t lol-deepwinpredictor .
+docker run -p 7860:7860 \
+  -e MODEL_URL=https://cdn.example.com/models/BILSTM_Att.pt \
+  lol-deepwinpredictor
+```
 
 ## 常用 API
 

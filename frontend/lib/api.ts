@@ -501,8 +501,17 @@ const opggPositionToRole: Record<string, Role> = {
   UTILITY: 'SUP',
 }
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+
+function apiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path
+  }
+  return `${API_BASE_URL}${path}`
+}
+
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url)
+  const response = await fetch(apiUrl(url))
   if (!response.ok) {
     throw new Error(`${url} returned ${response.status}`)
   }
@@ -543,7 +552,7 @@ export const fetchProSchedule = (params?: { league?: string; refresh?: boolean }
   return getJson<ApiProScheduleResponse>(`/query_pro_schedule${query ? `?${query}` : ''}`)
 }
 export async function predictProMatch(payload: unknown) {
-  const response = await fetch('/predict_pro_match', {
+  const response = await fetch(apiUrl('/predict_pro_match'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -556,7 +565,7 @@ export async function predictProMatch(payload: unknown) {
 }
 
 export async function predictProGame(payload: unknown) {
-  const response = await fetch('/predict_pro_game', {
+  const response = await fetch(apiUrl('/predict_pro_game'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -616,7 +625,7 @@ export const fetchChampionDetail = (params: {
 }
 
 export async function predictLineup(payload: unknown) {
-  const response = await fetch('/predict', {
+  const response = await fetch(apiUrl('/predict'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -638,7 +647,7 @@ export async function saveAiPredictionConfig(payload: {
   apiKey?: string
   clearApiKey?: boolean
 }) {
-  const response = await fetch('/ai_prediction_config', {
+  const response = await fetch(apiUrl('/ai_prediction_config'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -651,7 +660,7 @@ export async function saveAiPredictionConfig(payload: {
 }
 
 export async function fetchAiPredictionAnalysis(payload: unknown) {
-  const response = await fetch('/ai_prediction_analysis', {
+  const response = await fetch(apiUrl('/ai_prediction_analysis'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -664,7 +673,7 @@ export async function fetchAiPredictionAnalysis(payload: unknown) {
 }
 
 export async function testAiProvider(payload: unknown = {}) {
-  const response = await fetch('/ai_prediction_test', {
+  const response = await fetch(apiUrl('/ai_prediction_test'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
