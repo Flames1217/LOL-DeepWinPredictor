@@ -18,10 +18,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response as FastAPIResponse
 
 try:
-    from ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config
+    from ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, test_ai_provider_connection
     from model_storage import resolve_model_path
 except ModuleNotFoundError:
-    from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config
+    from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, test_ai_provider_connection
     from api.model_storage import resolve_model_path
 from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
 from Data_CrawlProcess import env
@@ -1240,16 +1240,7 @@ def ai_prediction_analysis():
 @app.route('/ai_prediction_test', methods=['POST'])
 def ai_prediction_test():
     data = request.json or {}
-    context = {
-        'mode': 'provider_test',
-        'result': {
-            'A_win': _float_or_zero(data.get('A_win'), 53),
-            'B_win': _float_or_zero(data.get('B_win'), 47),
-            'calibratedRate': _float_or_zero(data.get('A_win'), 53) / 100,
-        },
-        'note': 'Validate provider connectivity and JSON response shape.',
-    }
-    return jsonify(call_ai_prediction_analysis(context))
+    return jsonify(test_ai_provider_connection(data))
 
 
 @app.route('/model_diagnostics', methods=['GET'])

@@ -260,12 +260,15 @@ export interface ApiPredictionAnalysis {
   available?: boolean
   provider?: string
   model?: string
+  baseUrl?: string
   summary?: string
   confidence?: 'low' | 'medium' | 'high'
   keyFactors?: string[]
   risks?: string[]
   dataGaps?: string[]
   recommendedView?: string
+  endpoint?: string
+  rawPreview?: string
   error?: string
 }
 

@@ -75,7 +75,11 @@ export default function AiProviderPage() {
     setAnalysis(null)
     setMessage('')
     try {
-      setAnalysis(await testAiProvider({ A_win: 53, B_win: 47 }))
+      const result = await testAiProvider({ enabled, provider, model, baseUrl, apiKey })
+      setAnalysis(result)
+      if (result.baseUrl) {
+        setBaseUrl(result.baseUrl)
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '测试失败')
     } finally {
@@ -168,6 +172,8 @@ export default function AiProviderPage() {
             <h2 className="text-lg font-semibold">测试结果</h2>
           </div>
           <p className="text-sm text-foreground">{analysis.summary || '已返回响应'}</p>
+          {analysis.endpoint ? <p className="mt-2 break-all text-xs text-muted-foreground">Endpoint: {analysis.endpoint}</p> : null}
+          {analysis.rawPreview ? <p className="mt-2 break-all text-xs text-muted-foreground">Response: {analysis.rawPreview}</p> : null}
           {analysis.error ? <p className="mt-2 text-xs text-destructive">{analysis.error}</p> : null}
         </Card>
       ) : null}

@@ -40,10 +40,11 @@ def _write_file_config(payload: Dict[str, Any]) -> None:
 
 def _runtime_config() -> Dict[str, Any]:
     file_config = _load_file_config()
+    provider = _env("AI_PROVIDER") or str(file_config.get("provider") or "disabled")
     return {
-        "provider": _env("AI_PROVIDER") or str(file_config.get("provider") or "disabled"),
+        "provider": provider,
         "model": _env("AI_MODEL") or str(file_config.get("model") or ""),
-        "baseUrl": _env("AI_BASE_URL") or str(file_config.get("baseUrl") or ""),
+        "baseUrl": normalize_ai_base_url(provider, _env("AI_BASE_URL") or str(file_config.get("baseUrl") or "")),
         "apiKey": _env("AI_API_KEY") or str(file_config.get("apiKey") or ""),
         "enabled": bool(file_config.get("enabled", True)),
     }
@@ -80,13 +81,38 @@ def get_ai_prediction_config() -> Dict[str, Any]:
     }
 
 
+def normalize_ai_base_url(provider: str, base_url: str) -> str:
+    provider = str(provider or "").strip().lower()
+    value = str(base_url or "").strip()
+    if not value:
+        if provider == "openai":
+            return "https://api.openai.com/v1"
+        if provider == "ollama":
+            return "http://localhost:11434/v1"
+        return ""
+
+    if not value.startswith(("http://", "https://")):
+        scheme = "http" if provider == "ollama" or value.startswith(("localhost", "127.0.0.1")) else "https"
+        value = f"{scheme}://{value}"
+
+    value = value.rstrip("/")
+    chat_suffix = "/chat/completions"
+    if value.endswith(chat_suffix):
+        value = value[: -len(chat_suffix)]
+
+    if not value.endswith("/v1") and "/v1/" not in value:
+        value = f"{value}/v1"
+    return value.rstrip("/")
+
+
 def save_ai_prediction_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     previous = _load_file_config()
+    provider = str(payload.get("provider") or previous.get("provider") or "disabled").strip().lower()
     next_config = {
         "enabled": bool(payload.get("enabled", True)),
-        "provider": str(payload.get("provider") or previous.get("provider") or "disabled").strip().lower(),
+        "provider": provider,
         "model": str(payload.get("model") or previous.get("model") or "").strip(),
-        "baseUrl": str(payload.get("baseUrl") or previous.get("baseUrl") or "").strip().rstrip("/"),
+        "baseUrl": normalize_ai_base_url(provider, str(payload.get("baseUrl") or previous.get("baseUrl") or "")),
         "apiKey": str(previous.get("apiKey") or "").strip(),
     }
     if "apiKey" in payload and str(payload.get("apiKey") or "").strip():
@@ -139,13 +165,18 @@ def local_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _provider_endpoint(provider: str, base_url: str) -> str:
-    if provider == "openai" and not base_url:
-        base_url = "https://api.openai.com/v1"
-    if provider == "ollama" and not base_url:
-        base_url = "http://localhost:11434/v1"
+    base_url = normalize_ai_base_url(provider, base_url)
     if not base_url:
         raise RuntimeError("AI_BASE_URL is required for this provider")
     return base_url.rstrip("/") + "/chat/completions"
+
+
+def _provider_headers(api_key_override: str = "") -> Dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    api_key = str(api_key_override or _runtime_config().get("apiKey") or "")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
 
 def _parse_json_object(text: str) -> Dict[str, Any]:
@@ -171,11 +202,6 @@ def call_ai_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
         fallback["error"] = "AI_MODEL is not configured"
         return fallback
 
-    headers = {"Content-Type": "application/json"}
-    api_key = str(_runtime_config().get("apiKey") or "")
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
     payload = {
         "model": model,
         "messages": build_prediction_messages(context),
@@ -185,7 +211,7 @@ def call_ai_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
     endpoint = _provider_endpoint(provider, str(_runtime_config().get("baseUrl") or ""))
 
     try:
-        response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
+        response = requests.post(endpoint, headers=_provider_headers(), json=payload, timeout=30)
         response.raise_for_status()
         body = response.json()
         content = body["choices"][0]["message"]["content"]
@@ -198,3 +224,67 @@ def call_ai_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
         fallback = local_prediction_analysis(context)
         fallback["error"] = str(exc)
         return fallback
+
+
+def test_ai_provider_connection(payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    payload = payload or {}
+    config = get_ai_prediction_config()
+    provider = str(payload.get("provider") or config.get("provider") or "disabled").strip().lower()
+    model = str(payload.get("model") or config.get("model") or "").strip()
+    base_url = normalize_ai_base_url(provider, str(payload.get("baseUrl") or config.get("baseUrl") or ""))
+    api_key = str(payload.get("apiKey") or _runtime_config().get("apiKey") or "")
+    enabled = bool(payload.get("enabled", config.get("enabled", True)))
+    endpoint = ""
+
+    if not enabled or provider in {"", "disabled", "none", "off"}:
+        return {
+            "available": False,
+            "provider": provider,
+            "model": model,
+            "baseUrl": base_url,
+            "summary": "连接未测试：AI 分析未启用。",
+        }
+    if not model:
+        return {
+            "available": False,
+            "provider": provider,
+            "model": model,
+            "baseUrl": base_url,
+            "summary": "连接失败：请先填写模型名。",
+            "error": "AI_MODEL is not configured",
+        }
+
+    try:
+        endpoint = _provider_endpoint(provider, base_url)
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "Return compact JSON only."},
+                {"role": "user", "content": "{\"ok\": true}"},
+            ],
+            "temperature": 0,
+            "max_tokens": 32,
+        }
+        response = requests.post(endpoint, headers=_provider_headers(api_key), json=payload, timeout=20)
+        response.raise_for_status()
+        body = response.json()
+        content = str(((body.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+        return {
+            "available": True,
+            "provider": provider,
+            "model": model,
+            "baseUrl": base_url,
+            "endpoint": endpoint,
+            "summary": "连接成功：提供商已返回有效响应。",
+            "rawPreview": content[:160],
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "provider": provider,
+            "model": model,
+            "baseUrl": base_url,
+            "endpoint": endpoint,
+            "summary": "连接失败：请检查 Base URL、模型名、API Key 或接口路径。",
+            "error": str(exc),
+        }
