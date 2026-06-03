@@ -79,27 +79,11 @@ MYSQL_CONFIG = {
     'MYSQL_DATABASE': os.getenv('MYSQL_DATABASE'),
 }
 
-MONGO_URI = os.getenv('MONGO_URI')
-
 # 模型相关配置
 MODEL_PATH = os.path.join(project_root, 'static', 'saved_model', 'BILSTM_Att.pt')
 
 # ENV相关配置
 ENV_SEASONS = os.path.join(project_root, 'Data_CrawlProcess', 'env.py')
-
-# LPL相关配置
-LPL_DB = 'lpl'
-LPL_COL_SEASON = 'seasons'
-LPL_COL_BMATCH = 'bmatchids'
-LPL_COL_MATCH = 'match_data'
-
-# Wanplus相关配置
-WANPLUS_DB = 'wanplus'
-WANPLUS_COL_EID = 'eids'
-WANPLUS_COL_TEAM = 'teamids'
-WANPLUS_COL_SCHEDULE = 'scheduleids'
-WANPLUS_COL_BOID = 'boids'
-WANPLUS_COL_MATCH = 'match_data'
 
 # Other相关配置
 HERO_LIST = os.path.join(project_root, 'data', 'json', 'hero_list.json')
@@ -107,14 +91,6 @@ HERO_LOGO = os.path.join(project_root, 'data', 'json', 'hero_logo.json')
 HERO_INFO = os.path.join(project_root, 'data', 'json', 'hero_info.json')
 HERO_WIN_RATE = os.path.join(project_root, 'data', 'json', 'hero_win_rate.json')
 TEAM_LIST = os.path.join(project_root, 'data', 'json', 'team_list.json')
-
-# Concat相关配置
-DB1 = 'lpl'
-COL1 = 'match_data'
-DB2 = 'wanplus'
-COL2 = 'match_data'
-TARGET_DB = 'moba'
-TARGET_COL = 'lol'
 
 SEASONS = [
     {"name": "2025LPL第一赛段", "id": "218", "type": "97,100", "url": "https://lpl.qq.com/web202301/rank.html?seasonId=218&stageIds=97,100"},
