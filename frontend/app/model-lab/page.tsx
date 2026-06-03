@@ -76,11 +76,11 @@ export default function ModelLabPage() {
           <pre className="max-h-72 overflow-auto rounded-md bg-background/70 p-3 text-xs text-muted-foreground">{JSON.stringify(calibration, null, 2)}</pre>
         </Card>
         <Card className="space-y-3 border-border p-5">
-          <h2 className="text-lg font-semibold">实时预测输入形态</h2>
+          <h2 className="text-lg font-semibold">模型边界</h2>
           <div className="grid gap-2 text-sm text-muted-foreground">
-            <p>赛前：阵容、队伍强度、英雄分路胜率、选手英雄池。</p>
-            <p>进行中：时间、经济差、人头差、塔、小龙、大龙、先锋、巢虫、装备差、等级差、视野。</p>
-            <p>AI：只解释概率变化，不直接决定概率。</p>
+            <p>当前模型用于赛前或 BP 后预测，输入主要来自队伍、英雄、分路胜率和职业数据先验。</p>
+            <p>由于没有稳定可用的官方实时比赛数据流，项目不再提供自动实时胜率曲线模块。</p>
+            <p>AI 只负责解释本地模型与校准逻辑输出，不直接决定最终胜率。</p>
           </div>
         </Card>
       </div>

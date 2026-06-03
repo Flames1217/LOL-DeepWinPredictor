@@ -76,8 +76,6 @@ def get_ai_prediction_config() -> Dict[str, Any]:
         "hasApiKey": has_key,
         "maskedApiKey": _mask_key(api_key),
         "configPath": AI_CONFIG_PATH,
-        "supportsRealtime": enabled,
-        "realtimeModes": ["draft", "manual_live_state", "external_live_feed"],
     }
 
 

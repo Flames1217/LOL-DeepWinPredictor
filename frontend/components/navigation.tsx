@@ -16,7 +16,6 @@ import {
   Download,
   Menu,
   PlugZap,
-  Radar,
   X,
   ChevronRight,
 } from 'lucide-react'
@@ -29,7 +28,6 @@ const navItems = [
   { href: '/players', icon: User, label: '选手数据', description: '个人数据' },
   { href: '/schedule', icon: Calendar, label: '职业赛程', description: '比赛日程' },
   { href: '/ai-provider', icon: PlugZap, label: 'AI 提供商', description: '模型配置' },
-  { href: '/live-lpl', icon: Radar, label: 'LPL 实时', description: '实时探针' },
   { href: '/model-lab', icon: BrainCircuit, label: '模型实验室', description: '训练诊断' },
 ]
 

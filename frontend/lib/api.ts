@@ -281,44 +281,6 @@ export interface ApiAiPredictionConfig {
   hasApiKey?: boolean
   maskedApiKey?: string
   configPath?: string
-  supportsRealtime?: boolean
-  realtimeModes?: string[]
-}
-
-export interface ApiLiveProbeCandidate {
-  matchId: string | number
-  status?: string
-  statusLabel?: string
-  time?: string
-  homeTeam?: ApiScheduleTeam
-  awayTeam?: ApiScheduleTeam
-  score?: Array<string | number | null>
-  detailAvailable?: boolean
-}
-
-export interface ApiLiveProbeResponse {
-  ok: boolean
-  error?: string
-  checkedAt?: string
-  matchId?: string | number
-  candidateCount?: number
-  candidates?: ApiLiveProbeCandidate[]
-  compact?: Record<string, unknown>
-  inventory?: {
-    totalFields?: number
-    candidateLiveFields?: string[]
-    candidateLiveFieldCount?: number
-  }
-  changedFieldCount?: number
-  changedFields?: Array<{
-    path: string
-    before?: unknown
-    after?: unknown
-    liveHint?: boolean
-  }>
-  hadPreviousSnapshot?: boolean
-  saved?: boolean
-  snapshotPath?: string
 }
 
 export interface ApiSocialLinks {
@@ -731,17 +693,6 @@ export async function testAiProvider(payload: unknown = {}) {
     throw new Error(data?.error || 'AI provider test failed')
   }
   return data as ApiPredictionAnalysis
-}
-
-export const fetchLplLiveCandidates = (limit = 8) =>
-  getJson<{ ok: boolean; data: ApiLiveProbeCandidate[] }>(`/lpl_live_probe/candidates?limit=${encodeURIComponent(String(limit))}`)
-
-export async function runLplLiveProbe(params?: { matchId?: string | number; save?: boolean }) {
-  const search = new URLSearchParams()
-  if (params?.matchId) search.set('match_id', String(params.matchId))
-  if (params?.save === false) search.set('save', '0')
-  const query = search.toString()
-  return getJson<ApiLiveProbeResponse>(`/lpl_live_probe/run${query ? `?${query}` : ''}`)
 }
 
 export const fetchModelDiagnostics = () => getJson<Record<string, unknown>>('/model_diagnostics')

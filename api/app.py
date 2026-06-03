@@ -48,7 +48,6 @@ from Data_CrawlProcess.team_player_stats_sync import (
     start_pro_stats_scheduler,
     sync_pro_stats,
 )
-from Data_CrawlProcess.lpl_live_probe import lpl_live_candidates, probe_lpl_live_sources
 from tool_utils.log_utils import RichLogger
 from tool_utils.mysql_utils import MySQLUtils
 
@@ -1290,63 +1289,6 @@ def model_diagnostics():
             'use AI providers for explanation only; keep probability calculation local and deterministic',
         ],
     })
-
-
-@app.route('/live_prediction', methods=['POST'])
-def live_prediction():
-    data = request.json or {}
-    draft_payload = {
-        'left_team': data.get('left_team') or data.get('draft', {}).get('left_team') or {},
-        'right_team': data.get('right_team') or data.get('draft', {}).get('right_team') or {},
-    }
-    result = _calibrated_lineup_prediction(draft_payload)
-    game_state = data.get('gameState') or {}
-    if game_state:
-        gold_delta = _float_or_zero(game_state.get('blueGold'), 0) - _float_or_zero(game_state.get('redGold'), 0)
-        kill_delta = _float_or_zero(game_state.get('blueKills'), 0) - _float_or_zero(game_state.get('redKills'), 0)
-        objective_delta = (
-            _float_or_zero(game_state.get('blueDragons'), 0)
-            + _float_or_zero(game_state.get('blueBarons'), 0) * 1.5
-            - _float_or_zero(game_state.get('redDragons'), 0)
-            - _float_or_zero(game_state.get('redBarons'), 0) * 1.5
-        )
-        live_prior = _safe_sigmoid((result['calibratedRate'] - 0.5) * 3 + gold_delta / 12000 + kill_delta * 0.08 + objective_delta * 0.15)
-        result['A_win'] = live_prior * 100
-        result['B_win'] = (1 - live_prior) * 100
-        result['calibratedRate'] = live_prior
-        result['method'] = 'draft_prediction_with_manual_live_state'
-        result['explanation'] = '已在赛前 BP 概率上叠加手动传入的经济、人头和资源状态；如需真正实时，需要接入外部事件流。'
-    result['realtime'] = {
-        'mode': 'manual_live_state' if game_state else 'draft_only',
-        'requiresExternalLiveFeed': True,
-    }
-    if data.get('includeAi'):
-        result['aiAnalysis'] = call_ai_prediction_analysis({
-            'mode': result['realtime']['mode'],
-            'gameState': game_state,
-            'result': result,
-        })
-    return jsonify(result)
-
-
-@app.route('/lpl_live_probe/candidates', methods=['GET'])
-def lpl_live_probe_candidates():
-    limit = int(_float_or_zero(request.args.get('limit'), 8))
-    return jsonify({
-        'ok': True,
-        'data': lpl_live_candidates(limit=max(1, min(limit, 30))),
-    })
-
-
-@app.route('/lpl_live_probe/run', methods=['POST', 'GET'])
-def lpl_live_probe_run():
-    match_id = request.args.get('match_id') or request.args.get('id')
-    save = request.args.get('save', '1').lower() not in {'0', 'false', 'no'}
-    try:
-        return jsonify(probe_lpl_live_sources(match_id=match_id, save=save))
-    except Exception as exc:
-        rich_logger.error(f"LPL live probe failed: {exc}")
-        return json_response({'ok': False, 'error': str(exc)}, status_code=502)
 
 
 @app.route('/_next/{filename:path}')

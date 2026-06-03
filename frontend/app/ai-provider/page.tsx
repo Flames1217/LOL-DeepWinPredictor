@@ -99,7 +99,7 @@ export default function AiProviderPage() {
         </Badge>
       </header>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,340px)]">
         <Card className="space-y-5 border-border p-5">
           <div className="flex items-center gap-2">
             <PlugZap className="h-5 w-5 text-primary" />
@@ -148,12 +148,12 @@ export default function AiProviderPage() {
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         </Card>
 
-        <Card className="space-y-4 border-border p-5">
+        <Card className="min-w-0 space-y-4 overflow-hidden border-border p-5">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">当前状态</h2>
           </div>
-          <div className="grid gap-3 text-sm">
+          <div className="grid gap-3 text-sm [&_p]:grid [&_p]:grid-cols-[5rem_minmax(0,1fr)] [&_strong]:min-w-0 [&_strong]:break-all [&_strong]:text-right">
             <p className="flex justify-between gap-3"><span className="text-muted-foreground">Provider</span><strong>{config?.provider || '-'}</strong></p>
             <p className="flex justify-between gap-3"><span className="text-muted-foreground">Model</span><strong>{config?.model || '-'}</strong></p>
             <p className="flex justify-between gap-3"><span className="text-muted-foreground">Base URL</span><strong>{config?.baseUrlConfigured ? '已配置' : '未配置'}</strong></p>
