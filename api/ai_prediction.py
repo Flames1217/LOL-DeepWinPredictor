@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List
 
 import requests
 
@@ -141,6 +141,52 @@ def build_prediction_messages(context: Dict[str, Any]) -> List[Dict[str, str]]:
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
+def build_prediction_prose_messages(context: Dict[str, Any]) -> List[Dict[str, str]]:
+    system = (
+        "你是英雄联盟职业赛事胜率预测分析师。请用简体中文直接输出一段可读的赛前分析，"
+        "不要输出 JSON，不要使用 Markdown 表格，不要改写或自创胜率。"
+        "必须围绕本地模型给出的蓝方/红方胜率、队伍先验、BP 阵容、分路强弱和风险点进行解释。"
+        "如果缺少实时经济、视野、资源或选手临场状态，请明确说这是赛前/BP 预测，不是实时局势预测。"
+        "输出 2 到 4 个短段落，语气像专业解说分析，信息密度高但不要空话。"
+    )
+    user = json.dumps(
+        {
+            "task": "生成胜率预测模块的文字分析，保持 supplied probabilities 不变。",
+            "context": context,
+        },
+        ensure_ascii=False,
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def local_prediction_text(context: Dict[str, Any]) -> str:
+    result = context.get("result") or {}
+    teams = context.get("teams") or {}
+    blue = (teams.get("blue") or {}).get("name") or "蓝方"
+    red = (teams.get("red") or {}).get("name") or "红方"
+    a_win = float(result.get("A_win") or 50)
+    b_win = float(result.get("B_win") or 50)
+    leader = blue if a_win >= b_win else red
+    leader_rate = max(a_win, b_win)
+    gap = abs(a_win - b_win)
+
+    if gap >= 18:
+        tone = "优势已经比较明显"
+    elif gap >= 8:
+        tone = "有一定领先"
+    else:
+        tone = "整体仍然接近五五开"
+
+    return (
+        f"从当前 BP 和队伍先验看，{leader} 的校准后胜率为 {leader_rate:.1f}%，{tone}。"
+        f"本次结果把本地模型输出、队伍强度和英雄分路胜率混合校准，因此它更适合作为赛前阵容判断，"
+        f"不是实时经济、资源和团战走势的替代。\n\n"
+        f"蓝方 {blue} 当前预测胜率为 {a_win:.1f}%，红方 {red} 为 {b_win:.1f}%。"
+        f"如果两边阵容后续没有变化，主要观察点会落在强势分路能否兑现线权、打野能否围绕优势路控资源，"
+        f"以及中期第一波小龙团或先锋团是否会打破模型给出的初始倾向。"
+    )
+
+
 def local_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
     result = context.get("result") or {}
     a_win = float(result.get("A_win") or 50)
@@ -224,6 +270,54 @@ def call_ai_prediction_analysis(context: Dict[str, Any]) -> Dict[str, Any]:
         fallback = local_prediction_analysis(context)
         fallback["error"] = str(exc)
         return fallback
+
+
+def stream_ai_prediction_analysis(context: Dict[str, Any]) -> Iterator[str]:
+    config = get_ai_prediction_config()
+    if not config["enabled"] or not config.get("model"):
+        yield local_prediction_text(context)
+        return
+
+    provider = config["provider"]
+    payload = {
+        "model": config["model"],
+        "messages": build_prediction_prose_messages(context),
+        "temperature": 0.35,
+        "max_tokens": 900,
+        "stream": True,
+    }
+
+    try:
+        endpoint = _provider_endpoint(provider, str(_runtime_config().get("baseUrl") or ""))
+        emitted = False
+        with requests.post(endpoint, headers=_provider_headers(), json=payload, stream=True, timeout=(10, 60)) as response:
+            response.raise_for_status()
+            for raw_line in response.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                line = raw_line.strip()
+                if line.startswith("data:"):
+                    line = line[5:].strip()
+                if not line or line == "[DONE]":
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                choices = data.get("choices") or []
+                if not choices:
+                    continue
+                delta = choices[0].get("delta") or {}
+                message = choices[0].get("message") or {}
+                content = delta.get("content") or message.get("content")
+                if content:
+                    emitted = True
+                    yield str(content)
+        if not emitted:
+            yield local_prediction_text(context)
+    except Exception as exc:
+        fallback = local_prediction_text(context)
+        yield f"{fallback}\n\nAI 提供商流式分析暂时不可用，已展示本地兜底分析。错误：{exc}"
 
 
 def test_ai_provider_connection(payload: Dict[str, Any] | None = None) -> Dict[str, Any]:

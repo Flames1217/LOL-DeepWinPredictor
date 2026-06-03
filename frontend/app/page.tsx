@@ -27,7 +27,7 @@ import {
   fetchSiteStats,
   fetchTeamStats,
   fetchTeams,
-  fetchAiPredictionAnalysis,
+  streamAiPredictionAnalysis,
   getLaneWinRate,
   normalizeChampions,
   normalizeTeams,
@@ -344,27 +344,47 @@ export default function PredictPage() {
   const handleAiAnalysis = async () => {
     if (!predictionResult) return
     setIsAiAnalyzing(true)
+    const baseResult = {
+      ...predictionResult,
+      aiAnalysis: {
+        summary: '',
+        confidence: predictionResult.confidence,
+        available: true,
+      },
+    }
+    let streamedText = ''
+    const payload = {
+      mode: 'draft',
+      teams: {
+        blue: { league: blueLeagueKey, name: blueTeamName },
+        red: { league: redLeagueKey, name: redTeamName },
+      },
+      draft: { blueTeam, redTeam },
+      result: {
+        A_win: predictionResult.blueWinRate * 100,
+        B_win: predictionResult.redWinRate * 100,
+        modelRate: predictionResult.modelRate,
+        priorRate: predictionResult.priorRate,
+        calibratedRate: predictionResult.calibratedRate,
+        confidence: predictionResult.confidence,
+      },
+    }
+    setPredictionResult(baseResult)
     try {
-      const analysis = await fetchAiPredictionAnalysis({
-        mode: 'draft',
-        teams: {
-          blue: { league: blueLeagueKey, name: blueTeamName },
-          red: { league: redLeagueKey, name: redTeamName },
-        },
-        draft: { blueTeam, redTeam },
-        result: {
-          A_win: predictionResult.blueWinRate * 100,
-          B_win: predictionResult.redWinRate * 100,
-          modelRate: predictionResult.modelRate,
-          priorRate: predictionResult.priorRate,
-          calibratedRate: predictionResult.calibratedRate,
-          confidence: predictionResult.confidence,
-        },
+      const analysis = await streamAiPredictionAnalysis(payload, (delta) => {
+        streamedText += delta
+        setPredictionResult({
+          ...baseResult,
+          aiAnalysis: {
+            ...baseResult.aiAnalysis,
+            summary: streamedText,
+          },
+        })
       })
-      setPredictionResult({ ...predictionResult, aiAnalysis: analysis })
+      setPredictionResult({ ...baseResult, aiAnalysis: analysis })
     } catch (error) {
       setPredictionResult({
-        ...predictionResult,
+        ...baseResult,
         aiAnalysis: {
           summary: error instanceof Error ? error.message : 'AI 分析暂时不可用',
           confidence: predictionResult.confidence,
@@ -646,10 +666,13 @@ export default function PredictPage() {
                   {predictionResult.explanation}
                 </p>
               ) : null}
-              {predictionResult.aiAnalysis?.summary ? (
+              {predictionResult.aiAnalysis || isAiAnalyzing ? (
                 <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
                   <p className="text-sm font-semibold text-foreground">AI 分析</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{predictionResult.aiAnalysis.summary}</p>
+                  <p className="mt-2 min-h-16 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+                    {predictionResult.aiAnalysis?.summary || '正在生成分析...'}
+                    {isAiAnalyzing ? <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-primary align-[-2px]" /> : null}
+                  </p>
                 </div>
               ) : null}
               <div className="mt-4 flex justify-center">

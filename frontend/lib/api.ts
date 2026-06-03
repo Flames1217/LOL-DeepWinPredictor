@@ -675,6 +675,51 @@ export async function fetchAiPredictionAnalysis(payload: unknown) {
   return data as ApiPredictionAnalysis
 }
 
+export async function streamAiPredictionAnalysis(
+  payload: unknown,
+  onDelta: (delta: string) => void,
+) {
+  const response = await fetch(apiUrl('/ai_prediction_analysis_stream'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok || !response.body) {
+    throw new Error('AI analysis stream request failed')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalText = ''
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split('\n\n')
+    buffer = events.pop() || ''
+
+    for (const event of events) {
+      const line = event.split('\n').find((item) => item.startsWith('data:'))
+      if (!line) continue
+      const raw = line.slice(5).trim()
+      if (!raw) continue
+      const data = JSON.parse(raw) as { delta?: string; error?: string; done?: boolean }
+      if (data.error) throw new Error(data.error)
+      if (data.delta) {
+        finalText += data.delta
+        onDelta(data.delta)
+      }
+    }
+  }
+
+  return {
+    available: true,
+    summary: finalText.trim(),
+  } as ApiPredictionAnalysis
+}
+
 export async function testAiProvider(payload: unknown = {}) {
   const response = await fetch(apiUrl('/ai_prediction_test'), {
     method: 'POST',

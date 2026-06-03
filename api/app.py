@@ -15,13 +15,13 @@ import torch
 import uvicorn
 from fastapi import FastAPI, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response as FastAPIResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response as FastAPIResponse, StreamingResponse
 
 try:
-    from ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, test_ai_provider_connection
+    from ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, stream_ai_prediction_analysis, test_ai_provider_connection
     from model_storage import resolve_model_path
 except ModuleNotFoundError:
-    from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, test_ai_provider_connection
+    from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, stream_ai_prediction_analysis, test_ai_provider_connection
     from api.model_storage import resolve_model_path
 from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
 from Data_CrawlProcess import env
@@ -1235,6 +1235,21 @@ def ai_prediction_config_save():
 def ai_prediction_analysis():
     data = request.json or {}
     return jsonify(call_ai_prediction_analysis(data))
+
+
+@app.route('/ai_prediction_analysis_stream', methods=['POST'])
+def ai_prediction_analysis_stream():
+    data = request.json or {}
+
+    def event_stream():
+        try:
+            for chunk in stream_ai_prediction_analysis(data):
+                yield f"data: {json.dumps({'delta': chunk}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'done': True}, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type='text/event-stream')
 
 
 @app.route('/ai_prediction_test', methods=['POST'])
