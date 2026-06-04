@@ -13,7 +13,6 @@ import {
   User,
   Calendar,
   BrainCircuit,
-  Download,
   Menu,
   PlugZap,
   X,
@@ -224,22 +223,5 @@ export function MobileNav() {
         })}
       </nav>
     </>
-  )
-}
-
-export function ExportButton() {
-  return (
-    <motion.div
-      className="fixed bottom-20 lg:bottom-6 right-6 z-50"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-    >
-      <Button
-        size="lg"
-        className="rounded-full w-14 h-14 bg-gradient-to-br from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 shadow-lg shadow-secondary/30"
-      >
-        <Download className="w-6 h-6" />
-      </Button>
-    </motion.div>
   )
 }

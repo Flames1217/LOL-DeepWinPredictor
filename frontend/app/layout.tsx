@@ -1,5 +1,5 @@
 ﻿import type { Metadata, Viewport } from 'next'
-import { Sidebar, MobileNav, ExportButton } from '@/components/navigation'
+import { Sidebar, MobileNav } from '@/components/navigation'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -37,8 +37,6 @@ export default function RootLayout({
               {children}
             </div>
           </main>
-
-          <ExportButton />
         </div>
       </body>
     </html>

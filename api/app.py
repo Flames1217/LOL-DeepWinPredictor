@@ -1179,15 +1179,15 @@ def model_diagnostics():
             },
         },
         'knownIssues': [
-            'raw BiLSTM output is over-confident on many drafts',
-            'current training features do not include enough patch-specific team form, player form, or objective-control priors',
-            'post-match backtests can miss because the model does not read the final score as an input',
+            '原始 BiLSTM 在不少阵容上仍然偏过度自信，容易给出过高或过低的胜率。',
+            '当前训练特征还缺少足够的版本、队伍近期状态、选手状态和资源控制先验。',
+            '赛后回测可能预测错误，因为模型不会把最终比分作为赛前输入。',
         ],
         'nextSteps': [
-            'expand pre-match features with league, patch, side, roster, recent form, champion interaction, and source-site team/player metrics',
-            'build a post-match backtest dataset from finished match details without mixing final score into pre-match prediction inputs',
-            'train a calibrated model with validation by split/patch instead of random leakage-prone splits',
-            'use AI providers for explanation only; keep probability calculation local and deterministic',
+            '扩展赛前特征：加入赛区、版本、红蓝方、首发名单、近期状态、英雄克制关系和源站战队/选手指标。',
+            '构建赛后回测数据集：读取已完赛详情，但不把最终比分混入赛前预测输入。',
+            '重新训练带校准的模型：按赛区和版本切分验证集，避免随机切分造成的数据泄漏。',
+            'AI 提供商只负责生成解释文字，最终概率仍由本地模型和校准逻辑稳定输出。',
         ],
     })
 

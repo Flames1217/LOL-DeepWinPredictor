@@ -17,6 +17,38 @@ function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => String(item)) : []
 }
 
+function asNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function percent(value: unknown) {
+  const num = asNumber(value)
+  return num === null ? '-' : `${(num * 100).toFixed(0)}%`
+}
+
+const calibrationSections = [
+  {
+    key: 'lineup',
+    title: '阵容预测',
+    fields: [
+      ['modelWeight', '模型权重'],
+      ['priorWeight', '先验权重'],
+      ['minWinRate', '最低胜率'],
+      ['maxWinRate', '最高胜率'],
+    ],
+  },
+  {
+    key: 'proMatch',
+    title: '职业赛程预测',
+    fields: [
+      ['modelWeight', '模型权重'],
+      ['teamStrengthPriorWeight', '战队强度先验'],
+      ['minWinRate', '最低胜率'],
+      ['maxWinRate', '最高胜率'],
+    ],
+  },
+]
+
 export default function ModelLabPage() {
   const [diagnostics, setDiagnostics] = useState<AnyRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,7 +105,24 @@ export default function ModelLabPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="space-y-3 border-border p-5">
           <h2 className="text-lg font-semibold">校准策略</h2>
-          <pre className="max-h-72 overflow-auto rounded-md bg-background/70 p-3 text-xs text-muted-foreground">{JSON.stringify(calibration, null, 2)}</pre>
+          <div className="grid gap-3 md:grid-cols-2">
+            {calibrationSections.map((section) => {
+              const values = asRecord(calibration[section.key])
+              return (
+                <div key={section.key} className="rounded-md border border-border bg-background/45 p-3">
+                  <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    {section.fields.map(([field, label]) => (
+                      <div key={field} className="flex items-center justify-between gap-3 text-muted-foreground">
+                        <span>{label}</span>
+                        <span className="font-semibold text-foreground">{percent(values[field])}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </Card>
         <Card className="space-y-3 border-border p-5">
           <h2 className="text-lg font-semibold">模型边界</h2>
