@@ -1,0 +1,45 @@
+name: 同步到 Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: sync-huggingface-space
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: 配置 Git 身份
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 推送到 Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID || secrets.HF_SPACE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "缺少 GitHub Secret: HF_TOKEN"
+            exit 1
+          fi
+          if [ -z "${HF_SPACE_ID}" ]; then
+            echo "缺少 GitHub Variable 或 Secret: HF_SPACE_ID，例如 username/space-name"
+            exit 1
+          fi
+
+          git remote remove huggingface 2>/dev/null || true
+          git remote add huggingface "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_ID}"
+          git push huggingface HEAD:main --force
