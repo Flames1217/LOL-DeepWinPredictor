@@ -413,6 +413,31 @@ def _champion_meta_by_key() -> dict[str, dict[str, Any]]:
 
 
 @lru_cache(maxsize=1)
+def get_tencent_hero_metadata() -> list[dict[str, Any]]:
+    heroes = []
+    for hero in _tencent_hero_candidates():
+        hero_id = hero.get("heroId")
+        alias = hero.get("alias")
+        if not hero_id:
+            continue
+        heroes.append({
+            "heroId": hero_id,
+            "name": hero.get("name") or hero.get("title") or alias or str(hero_id),
+            "alias": alias or str(hero_id),
+            "keywords": hero.get("keywords") or ",".join(
+                str(item)
+                for item in (hero.get("name"), hero.get("title"), alias, hero_id)
+                if item
+            ),
+            "heroLogo": (
+                _https_url(hero.get("heroLogo"))
+                or (f"https://game.gtimg.cn/images/lol/act/img/champion/{alias}.png" if alias else None)
+            ),
+        })
+    return heroes
+
+
+@lru_cache(maxsize=1)
 def _tencent_rune_lookup() -> dict[str, dict[str, Any]]:
     try:
         response = requests.get(TENCENT_RUNE_LIST_URL, timeout=15)

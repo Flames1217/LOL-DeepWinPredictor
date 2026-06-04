@@ -1061,7 +1061,7 @@ export default function ChampionsPage() {
         const sourceLabel = selectedRegion.nativeSource
           ? '中国 · 101'
           : `${selectedRegion.label} · OP.GG`
-        const normalized = normalizeChampions([], positionStats.data || [], {}, source)
+        const normalized = normalizeChampions(positionStats.heroes || [], positionStats.data || [], {}, source)
           .map((champion) => ({
             ...champion,
             sourceLabel,

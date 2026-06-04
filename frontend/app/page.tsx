@@ -272,7 +272,7 @@ export default function PredictPage() {
         if (!mounted) return
 
         setLaneStats({})
-        setChampions(normalizeChampions([], championPositionStats.data || [], {}))
+        setChampions(normalizeChampions(championPositionStats.heroes || [], championPositionStats.data || [], {}))
         const normalizedTeams = normalizeTeams(teamPayload.data || [])
         setTeams(normalizedTeams)
         setTeamsByLeague((state) => ({ ...state, [DEFAULT_LEAGUE]: normalizedTeams }))

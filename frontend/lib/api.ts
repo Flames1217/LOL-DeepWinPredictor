@@ -395,6 +395,7 @@ export interface ApiChampionPositionStat {
 
 export interface ApiChampionPositionStatsResponse {
   data?: ApiChampionPositionStat[]
+  heroes?: ApiHero[]
   source?: string
   region?: string
   tier?: string
@@ -726,6 +727,7 @@ export function normalizeChampions(
     const statKey = String(stat.key || stat.name || sortIndex)
     const officialHero = heroId ? heroById.get(heroId) : undefined
     const alias = officialHero?.alias || stat.key || String(heroId)
+    const fallbackImageUrl = heroId ? `/lol_champion_icon/${heroId}.png` : undefined
     const lane = roleToLane[role]
     const fallbackWinRate = heroId ? (laneStats[String(heroId)]?.[lane] ?? 0.5) : 0.5
     const winRate = Number.isFinite(stat.positionWinRate)
@@ -775,7 +777,7 @@ export function normalizeChampions(
           heroId: Number.isFinite(counterHeroId) ? counterHeroId : undefined,
           name: officialCounter?.name || counter.name || counter.key || '',
           en: officialCounter?.alias || counter.key || String(counterHeroId || ''),
-          imageUrl: officialCounter?.heroLogo || counter.img_url,
+          imageUrl: officialCounter?.heroLogo || counter.img_url || (Number.isFinite(counterHeroId) ? `/lol_champion_icon/${counterHeroId}.png` : undefined),
           winRate: counterWinRate,
           games: Number.isFinite(counterGames) ? counterGames : undefined,
           wins: Number.isFinite(counterWins) ? counterWins : undefined,
@@ -792,7 +794,7 @@ export function normalizeChampions(
       dataSource: source,
       sourceLabel: source === 'cn' ? '中国区 · 101' : '全球 · OP.GG',
       role,
-      imageUrl: officialHero?.heroLogo || stat.image_url,
+      imageUrl: officialHero?.heroLogo || stat.image_url || fallbackImageUrl,
       banRate,
       pickRate,
       presenceRate,

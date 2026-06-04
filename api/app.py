@@ -28,6 +28,7 @@ from Data_CrawlProcess.champion_stats_sync import (
     get_cached_opgg_stats,
     get_cached_opgg_region_icon,
     get_cached_opgg_role_icon,
+    get_tencent_hero_metadata,
     get_sync_status,
     start_champion_stats_scheduler,
     sync_opgg_stats,
@@ -743,6 +744,7 @@ def query_cn_win_rate():
 
     payload = {
         'data': rows,
+        'heroes': get_tencent_hero_metadata(),
         'source': '101.qq.com',
         'tier': tier,
         'queue': queue,
