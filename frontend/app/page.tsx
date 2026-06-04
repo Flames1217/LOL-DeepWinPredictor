@@ -21,12 +21,9 @@ import { AnimatedCounter, DualWinRateDisplay } from '@/components/animated-eleme
 import { ChampionWeightChart } from '@/components/prediction-chart'
 import {
   fetchChampionPositionStats,
-  fetchHeroLaneStats,
-  fetchHeroes,
   fetchProLeagues,
   fetchSiteStats,
   fetchTeamStats,
-  fetchTeams,
   streamAiPredictionAnalysis,
   getLaneWinRate,
   normalizeChampions,
@@ -134,8 +131,18 @@ function buildTeamPayload(
   selectedTeam: Team | undefined,
   prefix: 'A' | 'B'
 ) {
-  const payload: Record<string, number> = {
+  const payload: Record<string, unknown> = {
     [`team${prefix}id`]: selectedTeam?.id || 0,
+    teamId: selectedTeam?.id || 0,
+    opggTeamId: selectedTeam?.opggTeamId || '',
+    teamName: selectedTeam?.name || '',
+    acronym: selectedTeam?.acronym || '',
+    teamLogo: selectedTeam?.logo || '',
+    winningRate: selectedTeam?.winRate || 0,
+    rank: selectedTeam?.rank || 0,
+    killPerGameTeam: selectedTeam?.avgKills || 0,
+    deathPerGameTeam: selectedTeam?.avgDeaths || 0,
+    assistPerGameTeam: selectedTeam?.avgAssists || 0,
   }
 
   roles.forEach((role, index) => {
@@ -243,12 +250,7 @@ export default function PredictPage() {
       const normalized = normalizeTeams(payload.data || [])
       setTeamsByLeague((state) => ({ ...state, [league]: normalized }))
     } catch (error) {
-      if (league !== DEFAULT_LEAGUE) {
-        setTeamsByLeague((state) => ({ ...state, [league]: [] }))
-        return
-      }
-      const fallbackTeams = await fetchTeams()
-      setTeamsByLeague((state) => ({ ...state, [league]: normalizeTeams(fallbackTeams) }))
+      setTeamsByLeague((state) => ({ ...state, [league]: [] }))
     } finally {
       setTeamLoadingByLeague((state) => ({ ...state, [league]: false }))
     }
@@ -260,10 +262,8 @@ export default function PredictPage() {
     async function loadInitialData() {
       try {
         setIsLoadingData(true)
-        const [heroes, teamPayload, stats, championPositionStats, siteStats, leaguePayload] = await Promise.all([
-          fetchHeroes(),
-          fetchTeamStats({ league: DEFAULT_LEAGUE }).catch(async () => ({ data: await fetchTeams() })),
-          fetchHeroLaneStats(),
+        const [teamPayload, championPositionStats, siteStats, leaguePayload] = await Promise.all([
+          fetchTeamStats({ league: DEFAULT_LEAGUE }).catch(() => ({ data: [] })),
           fetchChampionPositionStats(),
           fetchSiteStats().catch(() => ({ visit_count: 0, visitor_count: 0 })),
           fetchProLeagues().catch(() => ({ data: [{ shortName: DEFAULT_LEAGUE, name: 'League of Legends Pro League' }] })),
@@ -271,8 +271,8 @@ export default function PredictPage() {
 
         if (!mounted) return
 
-        setLaneStats(stats)
-        setChampions(normalizeChampions(heroes, championPositionStats.data || [], stats))
+        setLaneStats({})
+        setChampions(normalizeChampions([], championPositionStats.data || [], {}))
         const normalizedTeams = normalizeTeams(teamPayload.data || [])
         setTeams(normalizedTeams)
         setTeamsByLeague((state) => ({ ...state, [DEFAULT_LEAGUE]: normalizedTeams }))

@@ -46,6 +46,7 @@ OPGG_HEADERS = {
 }
 
 TENCENT_HERO_DETAIL_URL = "https://game.gtimg.cn/images/lol/act/img/js/hero/{hero_id}.js"
+TENCENT_HERO_LIST_URL = "https://game.gtimg.cn/images/lol/act/img/js/heroList/hero_list.js"
 TENCENT_GUIDE_DETAIL_URL = "https://lol.qq.com/act/lbp/common/guides/champDetail/champDetail_{hero_id}.js"
 TENCENT_RUNE_LIST_URL = "https://game.gtimg.cn/images/lol/act/img/js/runeList/rune_list.js"
 TENCENT_ITEM_LIST_URL = "https://game.gtimg.cn/images/lol/act/img/js/items/items.js"
@@ -167,33 +168,16 @@ def _cache_path(
     )
 
 
-def _legacy_cache_path(
-    region: str = "global",
-    tier: str = "all",
-    patch: str | None = None,
-) -> str:
-    return os.path.join(
-        OPGG_CACHE_ROOT,
-        _safe_key(region, "global"),
-        _safe_key(tier, "all"),
-        f"{_safe_key(patch or 'latest', 'latest')}.json",
-    )
-
-
 def _load_stats_cache(
     region: str,
     tier: str,
     patch: str | None,
     game_type: str,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    paths = [
-        _cache_path(region, tier, patch, game_type),
-        _legacy_cache_path(region, tier, patch),
-    ]
-    for path in paths:
-        cached = _load_json(path)
-        if cached:
-            return cached, path
+    path = _cache_path(region, tier, patch, game_type)
+    cached = _load_json(path)
+    if cached:
+        return cached, path
     return None, None
 
 
@@ -242,22 +226,6 @@ def _role_icon_path(role: str) -> str:
     return os.path.join(OPGG_ROLE_ICON_ROOT, f"{_safe_key(role, 'top')}.svg")
 
 
-def _legacy_payload() -> dict[str, Any]:
-    try:
-        with open(env.HERO_WIN_RATE, "r", encoding="utf-8") as file:
-            payload = json.load(file)
-        if isinstance(payload, dict):
-            payload.setdefault("source", "op.gg")
-            payload.setdefault("region", "global")
-            payload.setdefault("tier", "all")
-            payload.setdefault("patch", None)
-            payload.setdefault("cacheFallback", True)
-            return payload
-    except Exception as exc:
-        rich_logger.error(f"[ChampionStatsSync] 璇诲彇鏃ц嫳闆勮儨鐜囧け璐? {exc}")
-    return {"data": [], "source": "op.gg", "cacheFallback": True}
-
-
 def _load_json(path: str) -> dict[str, Any] | None:
     try:
         with open(path, "r", encoding="utf-8") as file:
@@ -266,7 +234,7 @@ def _load_json(path: str) -> dict[str, Any] | None:
     except FileNotFoundError:
         return None
     except Exception as exc:
-        rich_logger.error(f"[ChampionStatsSync] 璇诲彇缂撳瓨澶辫触 {path}: {exc}")
+        rich_logger.error(f"[ChampionStatsSync] read cache failed {path}: {exc}")
         return None
 
 
@@ -406,26 +374,22 @@ def _https_url(value: str | None) -> str | None:
     return value.replace("http://", "https://")
 
 
+@lru_cache(maxsize=1)
+def _tencent_hero_candidates() -> list[dict[str, Any]]:
+    try:
+        response = requests.get(TENCENT_HERO_LIST_URL, timeout=15)
+        response.raise_for_status()
+        payload = response.json()
+        heroes = payload.get("hero", []) if isinstance(payload, dict) else []
+        return [hero for hero in heroes if isinstance(hero, dict)]
+    except Exception as exc:
+        rich_logger.warning(f"[ChampionStatsSync] 101 hero list fetch failed: {exc}")
+        return []
+
+
 def _champion_id_by_key() -> dict[str, str]:
-    candidates = []
-    try:
-        with open(env.HERO_LIST, "r", encoding="utf-8") as file:
-            hero_list = json.load(file)
-        candidates.extend(hero_list.get("hero", []) if isinstance(hero_list, dict) else hero_list)
-    except Exception:
-        pass
-
-    try:
-        with open(env.HERO_INFO, "r", encoding="utf-8") as file:
-            hero_info = json.load(file)
-        candidates.extend(hero_info if isinstance(hero_info, list) else hero_info.get("data", []))
-    except Exception:
-        pass
-
     mapping: dict[str, str] = {}
-    for hero in candidates:
-        if not isinstance(hero, dict):
-            continue
+    for hero in _tencent_hero_candidates():
         hero_id = hero.get("heroId")
         for key in (hero.get("alias"), hero.get("name"), hero.get("title")):
             if key and hero_id:
@@ -434,19 +398,8 @@ def _champion_id_by_key() -> dict[str, str]:
 
 
 def _champion_meta_by_key() -> dict[str, dict[str, Any]]:
-    candidates = []
-    for path in (env.HERO_INFO, env.HERO_LIST):
-        try:
-            with open(path, "r", encoding="utf-8") as file:
-                payload = json.load(file)
-            candidates.extend(payload.get("hero", []) if isinstance(payload, dict) else payload)
-        except Exception:
-            pass
-
     mapping: dict[str, dict[str, Any]] = {}
-    for hero in candidates:
-        if not isinstance(hero, dict):
-            continue
+    for hero in _tencent_hero_candidates():
         alias = str(hero.get("alias") or "").lower()
         if not alias:
             continue
@@ -800,7 +753,7 @@ def _official_skill_payload(champion_key: str) -> dict[str, Any]:
         response.raise_for_status()
         data = response.json()
     except Exception as exc:
-        rich_logger.warning(f"[ChampionStatsSync] 鑵捐鑻遍泟鎶€鑳借ˉ鍏ㄥけ璐?{champion_key}: {exc}")
+        rich_logger.warning(f"[ChampionStatsSync] Tencent skill fallback failed {champion_key}: {exc}")
         return {"skills": [], "passive": None}
 
     spells = data.get("spells", []) if isinstance(data, dict) else []
@@ -889,7 +842,7 @@ def _extract_next_payload(html: str) -> dict[str, Any]:
             if isinstance(payload.get("data"), list):
                 return payload
 
-    raise ValueError("鏈湪 OP.GG 椤甸潰涓壘鍒?positionWinRate 鏁版嵁")
+    raise ValueError("positionWinRate data was not found in the OP.GG page")
 
 
 def _detect_patch(payload: dict[str, Any], html: str, requested_patch: str | None) -> str | None:
@@ -1163,7 +1116,7 @@ def _extract_rows_by_prefix(flight_text: str, prefixes: list[str], image_kind: s
         if not entries:
             continue
         rates = [_normalize_float(value) for value in re.findall(r'"children":\[(\d+(?:\.\d+)?),"%"\]', row)]
-        play_match = re.search(r'"children":\["([\d,]+)"," ","鍦烘"\]', row)
+        play_match = re.search(r'"children":\["([\d,]+)"," ","场次"\]', row)
         result[prefix].append(
             {
                 "entries": entries,
@@ -1203,11 +1156,11 @@ def _extract_spell_detail(flight_text: str) -> list[dict[str, Any]]:
             continue
         rates = [_normalize_float(value) for value in re.findall(r'"children":\[(\d+(?:\.\d+)?),"%"\]', row_text)]
         pick_match = re.search(
-            r'"children":(\d+(?:\.\d+)?)\}\],\["\$","span",null,\{"className":"text-gray-500","children":"[\d,]+ 鍦烘"',
+            r'"children":(\d+(?:\.\d+)?)\}\],\["\$","span",null,\{"className":"text-gray-500","children":"[\d,]+ 场次"',
             row_text,
         )
-        play_match = re.search(r'"children":"([\d,]+) 鍦烘"', row_text) or re.search(
-            r'"children":\["([\d,]+)"," ","鍦烘"\]', row_text
+        play_match = re.search(r'"children":"([\d,]+) 场次"', row_text) or re.search(
+            r'"children":\["([\d,]+)"," ","场次"\]', row_text
         )
         row = {
             "entries": entries,
@@ -1384,11 +1337,11 @@ def get_cached_opgg_champion_detail(
                     if _detail_has_build_content(build_payload):
                         payload = _merge_build_detail(payload, build_payload)
                 except Exception as qq_exc:
-                    rich_logger.error(f"[ChampionStatsSync] 101 閼婚亶娉熺拠锔藉剰鐞涖儱鍘栨径杈Е: {qq_exc}")
+                    rich_logger.error(f"[ChampionStatsSync] 101 champion detail fallback failed: {qq_exc}")
             _write_json(path, payload)
             return payload
         except Exception as exc:
-            rich_logger.error(f"[ChampionStatsSync] OP.GG 鑻遍泟璇︽儏鍚屾澶辫触: {exc}")
+            rich_logger.error(f"[ChampionStatsSync] OP.GG champion detail sync failed: {exc}")
             if not target_champion_key:
                 try:
                     payload = fetch_tencent_champion_build_detail(champion=champion, position=position)
@@ -1438,10 +1391,10 @@ def fetch_opgg_region_icon(region: str = "global") -> str:
     _ensure_opgg_html_response(response, "region icon")
     match = re.search(r'<label for="desktopMainFilterRegion"[\s\S]*?</label>', response.text)
     if not match:
-        raise ValueError(f"鏈壘鍒?OP.GG 鍖烘湇鍥炬爣: {region}")
+        raise ValueError(f"OP.GG region icon not found: {region}")
     svg_match = re.search(r"(<svg[\s\S]*?</svg>)", match.group(0))
     if not svg_match:
-        raise ValueError(f"鏈壘鍒?OP.GG 鍖烘湇 SVG: {region}")
+        raise ValueError(f"OP.GG region SVG not found: {region}")
     return svg_match.group(1)
 
 
@@ -1500,14 +1453,6 @@ def sync_opgg_stats(
         if not patch:
             _write_json(_cache_path(region, tier, "latest", game_type), payload)
 
-        if (
-            (region or "global") == "global"
-            and (tier or "all") == "all"
-            and (game_type or "SOLORANKED") == "SOLORANKED"
-            and not patch
-        ):
-            _write_json(env.HERO_WIN_RATE, payload)
-
         with _status_lock:
             _last_status.update(
                 {
@@ -1525,7 +1470,7 @@ def sync_opgg_stats(
             )
         _write_json(STATUS_PATH, get_sync_status())
         rich_logger.info(
-            f"[ChampionStatsSync] OP.GG 鍚屾瀹屾垚 region={region} tier={tier} patch={payload.get('patch')}"
+            f"[ChampionStatsSync] OP.GG sync completed region={region} tier={tier} patch={payload.get('patch')}"
         )
         return payload
     except Exception as exc:
@@ -1541,7 +1486,7 @@ def sync_opgg_stats(
             _write_json(STATUS_PATH, get_sync_status())
         except Exception:
             pass
-        rich_logger.error(f"[ChampionStatsSync] OP.GG 鍚屾澶辫触: {exc}")
+        rich_logger.error(f"[ChampionStatsSync] OP.GG sync failed: {exc}")
         raise
 
 
@@ -1577,10 +1522,6 @@ def get_cached_opgg_stats(
         except Exception:
             pass
 
-    if region == "global" and tier == "all":
-        legacy = _legacy_payload()
-        if legacy.get("data"):
-            return _prepare_cached_stats(legacy, requested_region=region)
     return {
         "data": [],
         "source": "op.gg",

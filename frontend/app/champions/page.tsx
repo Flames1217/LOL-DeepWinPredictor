@@ -37,8 +37,6 @@ import { getChampionImageUrl, getChampionSplashUrl } from '@/lib/mock-data'
 import {
   fetchChampionDetail,
   fetchChampionPositionStats,
-  fetchHeroLaneStats,
-  fetchHeroes,
   fetchTencentChampionPositionStats,
   normalizeChampions,
   type ApiChampionPositionStatsResponse,
@@ -1048,18 +1046,14 @@ export default function ChampionsPage() {
       setError(null)
 
       try {
-        const [heroes, laneStats, positionStats] = await Promise.all([
-          fetchHeroes(),
-          fetchHeroLaneStats(),
-          selectedRegion.nativeSource
-            ? fetchTencentChampionPositionStats(selectedTier.value, cnQueue, cnLaneByRole[roleFilter])
-            : fetchChampionPositionStats({
-                region: selectedRegion.value,
-                tier: selectedTier.value,
-                version,
-                gameType: opggGameType,
-              }),
-        ])
+        const positionStats = selectedRegion.nativeSource
+          ? await fetchTencentChampionPositionStats(selectedTier.value, cnQueue, cnLaneByRole[roleFilter])
+          : await fetchChampionPositionStats({
+              region: selectedRegion.value,
+              tier: selectedTier.value,
+              version,
+              gameType: opggGameType,
+            })
 
         if (!alive) return
 
@@ -1067,7 +1061,7 @@ export default function ChampionsPage() {
         const sourceLabel = selectedRegion.nativeSource
           ? '中国 · 101'
           : `${selectedRegion.label} · OP.GG`
-        const normalized = normalizeChampions(heroes, positionStats.data || [], laneStats, source)
+        const normalized = normalizeChampions([], positionStats.data || [], {}, source)
           .map((champion) => ({
             ...champion,
             sourceLabel,

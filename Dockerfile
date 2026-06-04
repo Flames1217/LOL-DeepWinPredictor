@@ -12,8 +12,8 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 COPY --chown=user . /app
 
 ENV PYTHONPATH=/app
-ENV PORT=7860
+ENV PORT=7777
 
-EXPOSE 7860
+EXPOSE 7777
 
 CMD ["python", "-m", "api.app"]

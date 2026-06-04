@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import ssl
 import threading
@@ -55,9 +55,6 @@ rich_logger = RichLogger()
 mysql_utils = MySQLUtils()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OLD_FRONTEND_DIR = os.path.join(BASE_DIR, 'old_frontend')
-TEMPLATE_DIR = os.path.join(OLD_FRONTEND_DIR, 'templates')
-STATIC_DIR = os.path.join(OLD_FRONTEND_DIR, 'static')
 MODEL_DIR = os.path.join(BASE_DIR, 'static', 'saved_model')
 FRONTEND_OUT_DIR = os.path.join(BASE_DIR, 'frontend', 'out')
 TENCENT_RANK_URL = 'https://x1-6833.native.qq.com/x1/6833/1061021&3af49f'
@@ -79,8 +76,6 @@ TENCENT_CN_LANE_BY_ROLE = {
 TENCENT_CN_POSITION_BY_LANE = {lane: position for lane, position in TENCENT_CN_LANES}
 TENCENT_RANK_CACHE = {}
 TENCENT_RANK_CACHE_TTL = 60 * 10
-HERO_LANE_CACHE = {'payload': None, 'cached_at': 0.0}
-HERO_LANE_CACHE_TTL = 60 * 30
 DDRAGON_VERSIONS_URL = 'https://ddragon.leagueoflegends.com/api/versions.json'
 DDRAGON_CDN = 'https://ddragon.leagueoflegends.com/cdn'
 DDRAGON_IMAGE_CDN = 'https://ddragon.leagueoflegends.com/cdn/img'
@@ -196,7 +191,17 @@ def send_from_directory(directory, filename, mimetype=None):
 
 
 def render_template(filename):
-    return FileResponse(os.path.join(TEMPLATE_DIR, filename), media_type='text/html')
+    return FastAPIResponse(
+        content=(
+            '<!doctype html><meta charset="utf-8">'
+            '<title>LOL-DeepWinPredictor</title>'
+            '<main style="font-family:system-ui;padding:32px">'
+            '<h1>LOL-DeepWinPredictor API is running</h1>'
+            '<p>Frontend build not found. Run <code>cd frontend && npm run build</code> to generate <code>frontend/out</code>.</p>'
+            '</main>'
+        ),
+        media_type='text/html',
+    )
 
 
 request = _RequestProxy()
@@ -228,28 +233,6 @@ async def request_context_middleware(req: FastAPIRequest, call_next):
         _current_json.reset(json_token)
         _current_request.reset(request_token)
 
-# Load local static data used by legacy endpoints.
-try:
-    with open(env.HERO_INFO, 'r', encoding='utf-8') as f:
-        hero_list = json.load(f)
-    with open(env.TEAM_LIST, 'r', encoding='utf-8') as f:
-        team_list = json.load(f)
-except FileNotFoundError as e:
-    rich_logger.error(f"required data file missing: {e}")
-    hero_list, team_list = [], []
-
-hero_data = hero_list.get('data', hero_list) if isinstance(hero_list, dict) else hero_list
-HERO_BY_ID = {
-    str(hero.get('heroId')): hero
-    for hero in hero_data
-    if isinstance(hero, dict) and hero.get('heroId') is not None
-}
-HERO_BY_ALIAS = {
-    str(hero.get('alias') or '').lower(): hero
-    for hero in hero_data
-    if isinstance(hero, dict) and hero.get('alias')
-}
-
 MODEL_LOCAL_PATH = resolve_model_path(os.path.join(MODEL_DIR, 'BILSTM_Att.pt'), rich_logger)
 try:
     if not os.path.exists(MODEL_LOCAL_PATH):
@@ -278,10 +261,7 @@ def index():
 
 @app.route('/site_stats', methods=['GET'])
 def site_stats():
-    """
-    获取站点访问次数和访问人数
-    :return: JSON {visit_count, visitor_count}
-    """
+    """Return site visit counters."""
     total, user = mysql_utils.get_site_stats()
     return jsonify({
         "visit_count": total,
@@ -289,21 +269,9 @@ def site_stats():
     })
 
 
-@app.route('/query_hero', methods=['GET'])
-def query_hero():
-    """
-    获取英雄列表
-    :return: 英雄列表JSON
-    """
-    return jsonify(hero_list)
-
-
 @app.route('/query_win_rate', methods=['GET'])
 def query_win_rate():
-    """
-    获取英雄胜率数据
-    :return: 英雄胜率JSON
-    """
+    """Fetch OP.GG champion win-rate data."""
     region = request.args.get('region', 'global')
     tier = request.args.get('tier', 'all')
     patch = request.args.get('patch') or request.args.get('version') or None
@@ -443,17 +411,6 @@ def _predict_rate(payload):
         return float(model(_prediction_tensor(payload)).item())
 
 
-def _legacy_team_by_id(team_id):
-    team_data = team_list.get('data', team_list) if isinstance(team_list, dict) else team_list
-    if isinstance(team_data, dict):
-        return team_data.get(str(team_id)) or team_data.get(team_id)
-    if isinstance(team_data, list):
-        for team in team_data:
-            if str(team.get('teamId')) == str(team_id):
-                return team
-    return None
-
-
 @lru_cache(maxsize=1)
 def _ddragon_version():
     try:
@@ -540,11 +497,9 @@ def _summoner_spell_image(identifier):
 
 @app.route('/lol_champion_icon/{identifier}.png', methods=['GET'])
 def lol_champion_icon(identifier):
-    hero = HERO_BY_ID.get(str(identifier)) or HERO_BY_ALIAS.get(str(identifier).lower())
-    if not hero and str(identifier).isdigit():
+    if str(identifier).isdigit():
         return redirect(f'{CDRAGON_DATA_CDN}/v1/champion-icons/{identifier}.png', code=302)
-    alias = (hero or {}).get('alias') or identifier
-    return redirect(f'https://game.gtimg.cn/images/lol/act/img/champion/{alias}.png', code=302)
+    return redirect(f'https://game.gtimg.cn/images/lol/act/img/champion/{identifier}.png', code=302)
 
 
 @app.route('/lol_spell_icon/{identifier}.png', methods=['GET'])
@@ -714,9 +669,7 @@ def _infer_tencent_all_positions(tier, queue):
 
 @app.route('/query_cn_win_rate', methods=['GET'])
 def query_cn_win_rate():
-    """
-    鑾峰彇 101.qq.com 鑻遍泟鍥藉尯鎺掕鏁版嵁銆?
-    """
+    """Fetch 101.qq.com champion ranking data."""
     tier = request.args.get('tier', '999')
     queue = request.args.get('queue', '420')
     lane = request.args.get('lane', 'all')
@@ -779,20 +732,6 @@ def query_cn_win_rate():
         'payload': payload,
     }
     return jsonify(payload)
-
-
-@app.route('/query_team', methods=['GET'])
-def query_team():
-    """
-    查询队伍信息，直接返回所有队伍数组，便于前端自动补全。
-    :return: 队伍列表
-    """
-    league = request.args.get('league') or request.args.get('region') or None
-    payload = get_cached_pro_teams(league=league, allow_sync=True)
-    if request.args.get('raw') == '1':
-        return jsonify(payload)
-    data = payload.get("data", payload) if isinstance(payload, dict) else payload
-    return jsonify(data)
 
 
 @app.route('/query_team_stats', methods=['GET'])
@@ -934,16 +873,21 @@ def _team_strength(team):
     return win * 3 + match_win * 2 + kda * 0.18 + economy + damage - rank * 0.025
 
 
-def _legacy_team_strength(team):
+def _team_payload_strength(team):
     if not team:
         return 0.0
     wins = _float_or_zero(team.get('teamWinCount') or team.get('win') or team.get('wins'))
     losses = _float_or_zero(team.get('teamLossCount') or team.get('loss') or team.get('losses'))
     games = wins + losses
-    win_rate = _rate01(team.get('teamWinRate') or team.get('winRate'), wins / games if games else 0.5)
-    kda = _float_or_zero(team.get('teamKDA') or team.get('kda'), 3.0)
+    win_rate = _rate01(team.get('winningRate') or team.get('teamWinRate') or team.get('winRate'), wins / games if games else 0.5)
+    kda = _float_or_zero(team.get('teamKDA') or team.get('kda'), 0.0)
+    avg_kills = _float_or_zero(team.get('killPerGameTeam') or team.get('avgKills'), 0.0)
+    avg_deaths = _float_or_zero(team.get('deathPerGameTeam') or team.get('avgDeaths'), 0.0)
+    avg_assists = _float_or_zero(team.get('assistPerGameTeam') or team.get('avgAssists'), 0.0)
+    if not kda:
+        kda = (avg_kills + avg_assists) / max(avg_deaths, 1.0) if avg_deaths else 3.0
     rank = _float_or_zero(team.get('teamRank') or team.get('rank'), 10)
-    return win_rate * 3.2 + kda * 0.12 - rank * 0.025
+    return win_rate * 3.2 + kda * 0.12 + avg_kills * 0.015 - rank * 0.025
 
 
 def _average_hero_rate(side_payload, prefix):
@@ -977,23 +921,19 @@ def _calibrated_lineup_prediction(data):
 
     left_payload = data.get('left_team') or {}
     right_payload = data.get('right_team') or {}
-    left_team = _legacy_team_by_id(left_payload.get('teamAid'))
-    right_team = _legacy_team_by_id(right_payload.get('teamBid'))
-    team_delta = _legacy_team_strength(left_team) - _legacy_team_strength(right_team)
+    left_team = left_payload
+    right_team = right_payload
+    team_delta = _team_payload_strength(left_team) - _team_payload_strength(right_team)
     hero_delta = (_average_hero_rate(left_payload, 'A') - _average_hero_rate(right_payload, 'B')) * 4.0
     prior_rate = _safe_sigmoid(team_delta + hero_delta)
     calibrated_rate = max(0.05, min(0.95, model_rate * 0.55 + prior_rate * 0.45))
     winner_side_name = 'blue side' if calibrated_rate >= 0.5 else 'red side'
     winner_team = left_team if calibrated_rate >= 0.5 else right_team
-    winner_id = left_payload.get('teamAid') if calibrated_rate >= 0.5 else right_payload.get('teamBid')
-    if not winner_team:
-        winner_team = _legacy_team_by_id(winner_id)
-
     result = {
         'A_win': calibrated_rate * 100,
         'B_win': (1 - calibrated_rate) * 100,
         'winning_team': {
-            'name': winner_team['teamName'] if winner_team else winner_side_name,
+            'name': winner_team.get('teamName') or winner_team.get('acronym') or winner_side_name,
             'logo': winner_team.get('teamLogo', '') if winner_team else ''
         },
         'method': 'bilstm_calibrated_with_team_and_draft_prior',
@@ -1162,45 +1102,6 @@ def pro_stats_sync_run():
         return json_response({'ok': False, 'error': str(exc)}, status_code=502)
 
 
-@app.route('/get_echarts_data', methods=['GET'])
-def get_heroes_data():
-    """
-    获取MySQL中的英雄分路胜率数据，供前端Echarts使用
-    :return: 英雄分路胜率字典
-    """
-    now = time.time()
-    cached_payload = HERO_LANE_CACHE.get('payload')
-    if cached_payload is not None and now - HERO_LANE_CACHE.get('cached_at', 0.0) < HERO_LANE_CACHE_TTL:
-        return jsonify(cached_payload)
-
-    rows = mysql_utils.select_hero_win_rate()
-    # 解析数据
-    heroes_data = {
-        0: {
-            'name': 'None',
-            'top': 0,
-            'jun': 0,
-            'mid': 0,
-            'adc': 0,
-            'sup': 0,
-        }
-    }
-    for row in rows:
-        hero_id = int(row[0])
-        hero_name = row[1]
-        heroes_data[hero_id] = {
-            'name': hero_name,
-            'top': row[2],
-            'jun': row[3],
-            'mid': row[4],
-            'adc': row[5],
-            'sup': row[6],
-        }
-    HERO_LANE_CACHE['payload'] = heroes_data
-    HERO_LANE_CACHE['cached_at'] = now
-    return jsonify(heroes_data)
-
-
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
@@ -1279,12 +1180,12 @@ def model_diagnostics():
         },
         'knownIssues': [
             'raw BiLSTM output is over-confident on many drafts',
-            'current training features do not include live economy, objectives, item spikes, or patch-specific team form',
+            'current training features do not include enough patch-specific team form, player form, or objective-control priors',
             'post-match backtests can miss because the model does not read the final score as an input',
         ],
         'nextSteps': [
-            'collect LPL live probe snapshots during an active match',
-            'build a time-series win-probability dataset from gameTime, goldDiff, killDiff, turrets, dragons, barons, items, and champion scaling',
+            'expand pre-match features with league, patch, side, roster, recent form, champion interaction, and source-site team/player metrics',
+            'build a post-match backtest dataset from finished match details without mixing final score into pre-match prediction inputs',
             'train a calibrated model with validation by split/patch instead of random leakage-prone splits',
             'use AI providers for explanation only; keep probability calculation local and deterministic',
         ],
@@ -1314,4 +1215,5 @@ def serve_frontend_page(frontend_path):
 if __name__ == '__main__':
     start_champion_stats_scheduler()
     start_pro_stats_scheduler()
-    uvicorn.run(app, host=os.getenv('HOST', '0.0.0.0'), port=int(os.getenv('PORT', '5000')))
+    uvicorn.run(app, host=os.getenv('HOST', '0.0.0.0'), port=int(os.getenv('PORT', '7777')))
+

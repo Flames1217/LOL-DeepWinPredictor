@@ -34,8 +34,6 @@ LPL_STATS_BASE_URL = "https://open.tjstats.com/match-auth-app/open/v1"
 
 CACHE_ROOT = os.path.join(env.project_root, "data", "json", "pro_stats")
 STATUS_PATH = os.path.join(CACHE_ROOT, "sync_status.json")
-LEGACY_TEAMS_CACHE_PATH = os.path.join(CACHE_ROOT, "teams.json")
-LEGACY_PLAYERS_CACHE_PATH = os.path.join(CACHE_ROOT, "players.json")
 
 DEFAULT_INTERVAL_SECONDS = int(os.getenv("PRO_STATS_SYNC_INTERVAL", str(60 * 60 * 6)))
 DEFAULT_LEAGUE = os.getenv("PRO_STATS_DEFAULT_LEAGUE", "LPL").upper()
@@ -1774,11 +1772,6 @@ def sync_pro_stats(
         except Exception as schedule_exc:
             rich_logger.error(f"[ProStatsSync] schedule sync skipped league={league_key}: {schedule_exc}")
 
-        if league_key == DEFAULT_LEAGUE:
-            _write_json(LEGACY_TEAMS_CACHE_PATH, payload["teams"])
-            _write_json(LEGACY_PLAYERS_CACHE_PATH, payload["players"])
-            _write_json(env.TEAM_LIST, payload["teams"])
-
         with _status_lock:
             _last_status.update(
                 {
@@ -1814,37 +1807,17 @@ def sync_pro_stats(
         rich_logger.error(f"[ProStatsSync] sync failed league={league_key}: {exc}")
         raise
 
-
-def _legacy_team_payload() -> dict[str, Any]:
-    try:
-        with open(env.TEAM_LIST, "r", encoding="utf-8") as file:
-            payload = json.load(file)
-        if isinstance(payload, dict):
-            payload.setdefault("source", "lpl.qq.com")
-            payload.setdefault("cacheFallback", True)
-            return payload
-        if isinstance(payload, list):
-            return {"data": payload, "source": "lpl.qq.com", "cacheFallback": True}
-    except Exception as exc:
-        rich_logger.error(f"[ProStatsSync] read legacy team data failed: {exc}")
-    return {"data": [], "source": "lpl.qq.com", "cacheFallback": True}
-
-
 def get_cached_pro_teams(league: str | None = None, allow_sync: bool = True) -> dict[str, Any]:
     league_key = _league_key(league)
     cached = _load_json(_cache_path("teams", league_key))
     if cached:
         return cached
-    if league_key == DEFAULT_LEAGUE:
-        cached = _load_json(LEGACY_TEAMS_CACHE_PATH)
-        if cached:
-            return cached
     if allow_sync:
         try:
             return sync_pro_stats(league=league_key)["teams"]
         except Exception:
             pass
-    return _legacy_team_payload() if league_key == DEFAULT_LEAGUE else {
+    return {
         "data": [],
         "source": "esports.op.gg",
         "league": {"shortName": league_key},
@@ -1857,10 +1830,6 @@ def get_cached_pro_players(league: str | None = None, allow_sync: bool = True) -
     cached = _load_json(_cache_path("players", league_key))
     if cached:
         return cached
-    if league_key == DEFAULT_LEAGUE:
-        cached = _load_json(LEGACY_PLAYERS_CACHE_PATH)
-        if cached:
-            return cached
     if allow_sync:
         try:
             return sync_pro_stats(league=league_key)["players"]

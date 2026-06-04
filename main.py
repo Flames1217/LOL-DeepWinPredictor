@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """One-shot data sync entrypoint for the current JSON/MySQL data pipeline."""
 
-from Data_CrawlProcess.Other import Other
 from Data_CrawlProcess.champion_stats_sync import sync_opgg_stats
 from Data_CrawlProcess.team_player_stats_sync import sync_pro_stats
 from tool_utils.log_utils import RichLogger
@@ -14,9 +13,6 @@ def main() -> None:
     progress = RichProgressUtils()
     progress.start()
     try:
-        rich_logger.info("[main] Syncing base hero/team JSON and MySQL hero win-rate table")
-        Other(rich_progress=progress).main()
-
         rich_logger.info("[main] Syncing OP.GG champion stats cache")
         sync_opgg_stats()
 

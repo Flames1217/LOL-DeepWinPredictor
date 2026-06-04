@@ -484,8 +484,6 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export const fetchSiteStats = () => getJson<SiteStats>('/site_stats')
-export const fetchHeroes = () => getJson<ApiHero[]>('/query_hero')
-export const fetchTeams = () => getJson<ApiTeam[]>('/query_team')
 export const fetchTeamStats = (params?: { league?: string }) => {
   const search = new URLSearchParams()
   if (params?.league) search.set('league', params.league)
@@ -547,7 +545,6 @@ export const fetchProMatchDetail = (params: { matchId: string | number; league?:
   if (params.source) search.set('source', params.source)
   return getJson<Record<string, unknown>>(`/query_pro_match_detail?${search.toString()}`)
 }
-export const fetchHeroLaneStats = () => getJson<HeroLaneStats>('/get_echarts_data')
 export const fetchChampionPositionStats = (params?: {
   region?: string
   tier?: string
@@ -698,9 +695,9 @@ export async function testAiProvider(payload: unknown = {}) {
 export const fetchModelDiagnostics = () => getJson<Record<string, unknown>>('/model_diagnostics')
 
 export function normalizeChampions(
-  heroes: ApiHero[],
+  heroes: ApiHero[] = [],
   positionStats: ApiChampionPositionStat[],
-  laneStats: HeroLaneStats,
+  laneStats: HeroLaneStats = {},
   source: 'global' | 'cn' = 'global'
 ): Champion[] {
   const heroById = new Map(

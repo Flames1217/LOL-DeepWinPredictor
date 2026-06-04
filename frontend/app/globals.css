@@ -10,7 +10,7 @@
 }
 
 :root {
-  /* LOL Esports Dark Theme - 鍗堝钃濋粦鑳屾櫙 */
+  /* LOL Esports dark theme */
   --background: #0A0E1A;
   --foreground: #E8E6E3;
   --card: #0F1422;
@@ -18,11 +18,11 @@
   --popover: #0F1422;
   --popover-foreground: #E8E6E3;
 
-  /* 涓昏壊璋?- 钃濊壊 */
+  /* Primary blue */
   --primary: #0BC4E3;
   --primary-foreground: #0A0E1A;
 
-  /* 娆¤鑹茶皟 - 閲戣壊 */
+  /* Secondary gold */
   --secondary: #C89B3C;
   --secondary-foreground: #0A0E1A;
 
@@ -31,7 +31,7 @@
   --accent: #1E2436;
   --accent-foreground: #E8E6E3;
 
-  /* 绾㈣壊 - 鐢ㄤ簬绾㈡柟闃熶紞 */
+  /* Red side accent */
   --destructive: #FF4D4D;
   --destructive-foreground: #FFFFFF;
 
@@ -39,20 +39,20 @@
   --input: #1A1F2E;
   --ring: #0BC4E3;
 
-  /* 鑳滅巼棰滆壊绯荤粺 */
+  /* Win-rate colors */
   --win-high: #00D563;
   --win-mid: #F0C93A;
   --win-low: #FF4D4D;
 
-  /* 闃熶紞棰滆壊 */
+  /* Team colors */
   --team-blue: #0BC4E3;
   --team-red: #E84057;
 
-  /* 閲戣壊楂樹寒 */
+  /* Gold highlight */
   --gold: #C89B3C;
   --gold-glow: rgba(200, 155, 60, 0.4);
 
-  /* 鍥捐〃棰滆壊 */
+  /* Chart colors */
   --chart-1: #0BC4E3;
   --chart-2: #C89B3C;
   --chart-3: #00D563;
@@ -125,7 +125,7 @@
   }
 }
 
-/* 鍏竟褰㈢汗鐞嗚儗鏅?*/
+/* Hex texture background */
 .hexagon-pattern {
   background-image:
     linear-gradient(rgba(10, 14, 26, 0.76), rgba(10, 14, 26, 0.82)),
@@ -136,7 +136,7 @@
   background-attachment: fixed, fixed, scroll;
 }
 
-/* 閲戣壊杈规鍏夋檿鏁堟灉 */
+/* Gold border glow */
 .card-hover-glow {
   transition: all 0.3s ease;
 }
@@ -145,7 +145,7 @@
   box-shadow: 0 0 20px var(--gold-glow), inset 0 0 10px rgba(200, 155, 60, 0.1);
 }
 
-/* 鑳滅巼杩涘害鏉℃笎鍙?*/
+/* Win-rate gradients */
 .win-rate-high {
   background: linear-gradient(90deg, #00D563, #00A84B);
 }
@@ -156,7 +156,7 @@
   background: linear-gradient(90deg, #FF4D4D, #CC3D3D);
 }
 
-/* 鏁板瓧婊氬姩鍔ㄧ敾 */
+/* Count-up animation */
 @keyframes countUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -165,7 +165,7 @@
   animation: countUp 0.5s ease-out forwards;
 }
 
-/* 楠ㄦ灦灞忓姩鐢?*/
+/* Skeleton shimmer */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -176,7 +176,7 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* 鑷畾涔夋粴鍔ㄦ潯 */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
