@@ -147,14 +147,30 @@ NEXT_PUBLIC_MODEL_API_BASE_URL=https://model-api.example.com
 | 完整服务 | `DEEPWIN_SERVICE_MODE=full` |
 | 轻量服务 | `DEEPWIN_SERVICE_MODE=lite` + Docker build arg `REQUIREMENTS_FILE=requirements-lite.txt` |
 
-Space Secrets / Variables：
+Hugging Face Space 的运行时配置：
 
-| 名称 | 说明 |
+| 名称 | 放置位置 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `DEEPWIN_SERVICE_MODE` | Variable | 否 | 服务模式，默认 `full`；轻量部署填 `lite` |
+| `PORT` | Variable | 否 | 服务端口，默认 `7777` |
+| `MODEL_URL` | Variable 或 Secret | 否 | 远程模型地址，支持 HTTPS、WebDAV HTTPS、公开 `s3://bucket/key`、S3/R2/OSS 预签名 HTTPS；仓库内已有模型时可留空 |
+| `MYSQL_URL` | Secret | 否 | MySQL 连接字符串，仅用于站点访问统计 |
+| `AI_PROVIDER` | Variable | 否 | AI 提供商，例如 `openai-compatible`、`openai`、`ollama` |
+| `AI_BASE_URL` | Variable | 否 | OpenAI Compatible Base URL |
+| `AI_API_KEY` | Secret | 否 | AI API Key |
+| `AI_MODEL` | Variable | 否 | AI 模型名 |
+| `PROXIES` | Secret | 否 | 访问 OP.GG、101.qq.com、lpl.qq.com 等源站时使用的代理 |
+
+最小可运行配置：
+
+| 场景 | 建议 |
 | --- | --- |
-| `MODEL_URL` | 远程模型地址；仓库内已有模型时可留空 |
-| `MYSQL_URL` | 可选，访问统计用 |
-| `AI_PROVIDER` / `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | 可选，AI 分析用 |
-| `PROXIES` | 可选，源站访问代理 |
+| 只跑页面和实时数据接口 | 不填也能启动，访问统计、远程模型和 AI 分析会自动降级 |
+| 需要访问统计 | 配置 `MYSQL_URL` |
+| 需要远程模型 | 配置 `MODEL_URL` |
+| 需要 AI 分析 | 配置 `AI_PROVIDER`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` |
+
+注意：`HF_TOKEN`、`HF_SPACE_ID`、`OPENROUTER_API_KEY` 是 GitHub Actions 使用的配置，不要填到 Hugging Face Space 运行时变量里。
 
 ### GitHub 自动同步到 Hugging Face
 
