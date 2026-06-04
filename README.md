@@ -271,7 +271,7 @@ curl -X POST "http://127.0.0.1:7777/pro_stats_sync/run?league=LPL"
 
 ### 方案 B：EdgeOne Pages / EdgeOne 全栈
 
-EdgeOne Pages 可以承载前端静态页面，也提供边缘函数和全栈框架部署能力。当前仓库是 **Next.js 静态前端 + Python FastAPI/PyTorch 后端** 的结构，所以可以先在 EdgeOne 上部署前端，也可以尝试全栈，但要提前确认 Python 运行时、PyTorch 体积、模型下载和源站同步请求是否符合平台限制。
+EdgeOne Pages 可以承载前端静态页面，也提供 Cloud Functions 全栈能力；官方 Python 运行时支持 FastAPI/ASGI。不过当前仓库是 **Next.js 静态前端 + Python FastAPI/PyTorch 后端** 的结构，完整后端包含 PyTorch 和模型推理依赖，直接塞进 EdgeOne Pages 函数很可能遇到函数包体、冷启动和执行时长限制。
 
 如果使用截图里的 EdgeOne Pages 创建页，建议这样填写：
 
@@ -290,8 +290,9 @@ EdgeOne Pages 可以承载前端静态页面，也提供边缘函数和全栈框
 推荐生产部署形态：
 
 1. **稳妥方案**：EdgeOne Pages 部署 `frontend/out`，FastAPI 后端放在 Render、Northflank、VPS 或 Docker 容器平台。
-2. **全栈尝试**：如果 EdgeOne 项目支持当前账号下的 Python/容器/全栈运行时，可以把后端也放到 EdgeOne；后端需要配置 `PORT`、`MODEL_URL`、`MYSQL_URL` 和 AI 相关变量。
-3. **失败回退**：如果遇到 PyTorch 包体过大、冷启动过慢、模型文件无法持久缓存、源站同步超时或 Python 运行时不匹配，就把后端拆回常驻服务，只让 EdgeOne 承载前端和 CDN 加速。
+2. **瘦身全栈方案**：如果只保留轻量 API、AI 文本分析、访问统计或代理查询，可以把这些接口做成 `cloud-functions/api/index.py`，让 EdgeOne Pages 同时部署前端和函数。
+3. **完整模型后端**：涉及 PyTorch、`MODEL_URL` 下载、本地模型推理和长时间源站同步时，建议继续使用常驻 Python 服务。EdgeOne 负责前端、CDN 和域名加速，后端用 `NEXT_PUBLIC_API_BASE_URL` 指向外部 FastAPI 服务。
+4. **失败回退**：如果遇到 PyTorch 包体过大、冷启动过慢、模型文件无法持久缓存、源站同步超时或 Python 运行时不匹配，就把后端拆回常驻服务，只让 EdgeOne 承载前端和 CDN 加速。
 
 ### 方案 C：手动部署
 
