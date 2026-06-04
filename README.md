@@ -172,6 +172,21 @@ Space Secrets / Variables：
 3. Actions 推送 `HEAD:main` 到 `https://huggingface.co/spaces/${HF_SPACE_ID}`。
 4. Hugging Face Space 收到更新后自动重新构建 Docker 镜像。
 
+### GitHub 自动发布 Release
+
+已保留 `.github/workflows/release.yml`。每次 `main` 分支更新后，GitHub Actions 会基于本次提交差异生成中文 Release Notes，并创建新的 GitHub Release。
+
+| GitHub 配置 | 值 |
+| --- | --- |
+| Secret `OPENROUTER_API_KEY` | 用于调用 OpenRouter 生成 Release Notes |
+| `GITHUB_TOKEN` | GitHub Actions 内置 Token，无需手动创建 |
+
+说明：
+
+1. `OPENROUTER_API_KEY` 只给 GitHub Actions 使用，不需要配置到 Hugging Face Space 或本地运行环境。
+2. 如果之后不想每次推送 `main` 都自动发布 Release，可以停用或删除 `.github/workflows/release.yml`，再删除这个 Secret。
+3. Release 失败不会影响 Hugging Face Space 同步；两个 workflow 是独立的。
+
 ### 方案 B：手动部署
 
 | 目标 | 命令 |
