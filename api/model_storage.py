@@ -34,14 +34,18 @@ def _download_to_path(model_url: str, destination: Path) -> str:
     temp_path = destination.with_suffix(destination.suffix + ".tmp")
     headers = {"User-Agent": "LOL-DeepWinPredictor/2.5"}
 
-    with requests.get(model_url, headers=headers, stream=True, timeout=(10, 120)) as response:
-        response.raise_for_status()
-        with open(temp_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    file.write(chunk)
+    try:
+        with requests.get(model_url, headers=headers, stream=True, timeout=(10, 120)) as response:
+            response.raise_for_status()
+            with open(temp_path, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        file.write(chunk)
 
-    os.replace(temp_path, destination)
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
     return str(destination)
 
 
@@ -63,4 +67,9 @@ def resolve_model_path(default_model_path: str, logger=None) -> str:
 
     if logger:
         logger.info(f"downloading model from MODEL_URL to {cached_path}")
-    return _download_to_path(model_url, cached_path)
+    try:
+        return _download_to_path(model_url, cached_path)
+    except Exception as exc:
+        if logger:
+            logger.error(f"MODEL_URL download failed, prediction model will be unavailable: {exc}")
+        return str(local_path)

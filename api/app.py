@@ -258,12 +258,13 @@ model, MODEL_LOCAL_PATH = _load_prediction_model()
 
 
 def _model_unavailable_response():
-    if MODEL_SERVICE_ENABLED:
+    if MODEL_SERVICE_ENABLED and model is not None:
         return None
     return json_response({
-        'error': 'model service is disabled',
+        'error': 'model service is unavailable' if MODEL_SERVICE_ENABLED else 'model service is disabled',
         'serviceMode': SERVICE_MODE,
-        'message': '当前后端以轻量数据模式运行，预测接口请指向完整模型服务。',
+        'modelPath': MODEL_LOCAL_PATH,
+        'message': '预测模型未加载。请检查 MODEL_URL 是否可直接下载，或将 DEEPWIN_SERVICE_MODE 设置为 lite 只运行数据接口。',
     }, status_code=503)
 
 
