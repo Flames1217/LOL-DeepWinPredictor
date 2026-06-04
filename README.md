@@ -16,9 +16,9 @@
 </p>
 
 <p>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor&project-name=lol-deepwinpredictor&repository-name=LOL-DeepWinPredictor"><img src="https://vercel.com/button" alt="Deploy with Vercel"></a>
-  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/Flames1217/LOL-DeepWinPredictor"><img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify"></a>
-  <a href="https://edgeone.ai/pages/new?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor"><img src="https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg" alt="Deploy with EdgeOne Pages"></a>
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor&project-name=lol-deepwinpredictor&repository-name=LOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://vercel.com/button" alt="Deploy with Vercel"></a>
+  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/Flames1217/LOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify"></a>
+  <a href="https://edgeone.ai/pages/new?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg" alt="Deploy with EdgeOne Pages"></a>
 </p>
 
 LOL-DeepWinPredictor 是一个面向英雄联盟职业赛事的数据分析与胜率预测系统。项目使用本地 BiLSTM-Attention 模型做基础推理，并接入 `101.qq.com`、`OP.GG`、`esports.op.gg`、`lpl.qq.com` 的实时数据接口，提供阵容胜率预测、职业赛程预测、小场预测、英雄/战队/选手数据面板、比赛详情和流式 AI 分析。
@@ -271,18 +271,27 @@ curl -X POST "http://127.0.0.1:7777/pro_stats_sync/run?league=LPL"
 
 ### 方案 B：EdgeOne Pages / EdgeOne 全栈
 
-EdgeOne Pages 可以承载前端静态页面，也支持边缘函数和全栈框架能力。对本项目来说，有两种用法：
+EdgeOne Pages 可以承载前端静态页面，也提供边缘函数和全栈框架部署能力。当前仓库是 **Next.js 静态前端 + Python FastAPI/PyTorch 后端** 的结构，所以可以先在 EdgeOne 上部署前端，也可以尝试全栈，但要提前确认 Python 运行时、PyTorch 体积、模型下载和源站同步请求是否符合平台限制。
 
-- 只部署 `frontend` 到 EdgeOne Pages，FastAPI 后端仍放在 Render / Northflank / VPS。
-- 尝试全栈部署，把静态前端和轻量 API 放到 EdgeOne；如果 PyTorch、模型下载或源站同步导致包体、冷启动、运行时限制过高，则拆回常驻后端。
+如果使用截图里的 EdgeOne Pages 创建页，建议这样填写：
 
-EdgeOne 环境中建议：
+| 配置项 | 推荐值 |
+| --- | --- |
+| 项目名称 | `LOL-DeepWinPredictor` |
+| 仓库名称 | `LOL-DeepWinPredictor` |
+| 加速区域 | 按目标用户选择；国内访问优先选择包含中国大陆的区域 |
+| 仓库属性 | 开源项目可选公共；私有部署选私有 |
+| 根目录 | `frontend` |
+| 安装命令 | `npm install` |
+| 构建命令 | `npm run build` |
+| 输出目录 | `out` |
+| 环境变量 | `NEXT_PUBLIC_API_BASE_URL=https://你的后端域名` |
 
-1. Root Directory 选择 `frontend`。
-2. Build Command 使用 `npm run build`。
-3. Output Directory 使用 `out`。
-4. 配置 `NEXT_PUBLIC_API_BASE_URL` 指向 FastAPI 后端。
-5. 如果尝试全栈，请确认运行时支持 Python 依赖体积、模型文件下载和长时间源站请求。
+推荐生产部署形态：
+
+1. **稳妥方案**：EdgeOne Pages 部署 `frontend/out`，FastAPI 后端放在 Render、Northflank、VPS 或 Docker 容器平台。
+2. **全栈尝试**：如果 EdgeOne 项目支持当前账号下的 Python/容器/全栈运行时，可以把后端也放到 EdgeOne；后端需要配置 `PORT`、`MODEL_URL`、`MYSQL_URL` 和 AI 相关变量。
+3. **失败回退**：如果遇到 PyTorch 包体过大、冷启动过慢、模型文件无法持久缓存、源站同步超时或 Python 运行时不匹配，就把后端拆回常驻服务，只让 EdgeOne 承载前端和 CDN 加速。
 
 ### 方案 C：手动部署
 
