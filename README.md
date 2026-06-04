@@ -205,6 +205,8 @@ Hugging Face Space 的运行时配置：
 5. Actions 推送部署目录到 `https://huggingface.co/spaces/${HF_SPACE_ID}` 的 `main` 分支。
 6. Hugging Face Space 收到更新后自动重新构建 Docker 镜像。
 
+如果同步日志出现 `429`，通常是 Hugging Face Git/构建接口限流。workflow 会自动退避重试；如果重试耗尽，稍后在 GitHub Actions 手动重新运行即可。
+
 ### GitHub 自动发布 Release
 
 已保留 `.github/workflows/release.yml`。每次 `main` 分支更新后，GitHub Actions 会基于本次提交差异生成中文 Release Notes，并创建新的 GitHub Release。

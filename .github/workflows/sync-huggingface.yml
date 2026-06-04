@@ -77,4 +77,15 @@ jobs:
           git commit -m "同步部署包：${GITHUB_SHA}"
 
           git remote add huggingface "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_ID}"
-          git push huggingface HEAD:main --force
+          for attempt in 1 2 3 4 5; do
+            if git push huggingface HEAD:main --force; then
+              exit 0
+            fi
+
+            sleep_seconds=$((attempt * attempt * 30))
+            echo "Hugging Face 推送失败，可能是 429 限流。第 ${attempt}/5 次失败，等待 ${sleep_seconds}s 后重试。"
+            sleep "${sleep_seconds}"
+          done
+
+          echo "Hugging Face 推送重试耗尽。请稍后手动重新运行 workflow。"
+          exit 1
