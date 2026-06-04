@@ -184,9 +184,11 @@ Hugging Face Space 的运行时配置：
 流程：
 
 1. GitHub 推送到 `main`。
-2. Actions 检出仓库和 LFS。
-3. Actions 推送 `HEAD:main` 到 `https://huggingface.co/spaces/${HF_SPACE_ID}`。
-4. Hugging Face Space 收到更新后自动重新构建 Docker 镜像。
+2. Actions 生成 Hugging Face 部署目录，只包含运行所需的后端、前端源码、Dockerfile、依赖文件和 README。
+3. Actions 排除本地缓存、构建产物、日志、临时文件和训练缓存。
+4. Actions 将图片、字体、模型等二进制资源按 Git LFS/Xet 方式提交，避免 Hugging Face 拒绝普通二进制推送。
+5. Actions 推送部署目录到 `https://huggingface.co/spaces/${HF_SPACE_ID}` 的 `main` 分支。
+6. Hugging Face Space 收到更新后自动重新构建 Docker 镜像。
 
 ### GitHub 自动发布 Release
 

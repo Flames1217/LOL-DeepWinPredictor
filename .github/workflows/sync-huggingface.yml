@@ -17,13 +17,37 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: true
 
-      - name: 配置 Git 身份
+      - name: 安装同步工具
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          sudo apt-get update
+          sudo apt-get install -y git-lfs rsync
+          git lfs install
+
+      - name: 生成 Hugging Face 部署目录
+        run: |
+          set -euo pipefail
+
+          DEPLOY_DIR="${RUNNER_TEMP}/hf-space"
+          rm -rf "${DEPLOY_DIR}"
+          mkdir -p "${DEPLOY_DIR}"
+
+          rsync -a README.md Dockerfile requirements.txt requirements-lite.txt main.py .env.example "${DEPLOY_DIR}/"
+          rsync -a api BILSTM_Att Data_CrawlProcess tool_utils frontend "${DEPLOY_DIR}/"
+
+          rm -rf \
+            "${DEPLOY_DIR}/frontend/.next" \
+            "${DEPLOY_DIR}/frontend/out" \
+            "${DEPLOY_DIR}/frontend/node_modules" \
+            "${DEPLOY_DIR}/frontend/tsconfig.tsbuildinfo"
+
+          find "${DEPLOY_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find "${DEPLOY_DIR}" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+
+          echo "部署目录内容："
+          find "${DEPLOY_DIR}" -maxdepth 3 -type d | sort
 
       - name: 推送到 Hugging Face Space
         env:
@@ -40,6 +64,17 @@ jobs:
             exit 1
           fi
 
-          git remote remove huggingface 2>/dev/null || true
+          DEPLOY_DIR="${RUNNER_TEMP}/hf-space"
+          cd "${DEPLOY_DIR}"
+
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git lfs install --local
+          git lfs track "*.png" "*.jpg" "*.jpeg" "*.webp" "*.ico" "*.woff" "*.woff2" "*.ttf" "*.otf" "*.pt"
+
+          git add .
+          git commit -m "同步部署包：${GITHUB_SHA}"
+
           git remote add huggingface "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_ID}"
           git push huggingface HEAD:main --force
