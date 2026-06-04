@@ -1,5 +1,9 @@
 # LOL-DeepWinPredictor
 
+<p align="center">
+  <img src="https://socialify.git.ci/Flames1217/LOL-DeepWinPredictor/image?description=1&font=Raleway&forks=1&issues=1&language=1&name=1&owner=1&pattern=Floating%20Cogs&pulls=1&stargazers=1&theme=Auto" alt="LOL-DeepWinPredictor" width="720">
+</p>
+
 <p>
   <img src="https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/python.svg" width="18" style="vertical-align:-3px" alt="Python"> Python&nbsp;&nbsp;
   <img src="https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/fastapi.svg" width="18" style="vertical-align:-3px" alt="FastAPI"> FastAPI&nbsp;&nbsp;
