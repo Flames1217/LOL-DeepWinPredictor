@@ -1,0 +1,11 @@
+aiohttp>=3.11.16
+beautifulsoup4>=4.12.2
+fastapi>=0.115.0
+numpy==1.26.0
+orjson==3.10.16
+pymysql==1.1.1
+python-dotenv>=1.0.1
+Requests>=2.32.3
+rich>=14.0.0
+typing_extensions>=4.15.0
+uvicorn[standard]>=0.30.0

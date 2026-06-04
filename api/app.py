@@ -11,7 +11,6 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import numpy as np
-import torch
 import uvicorn
 from fastapi import FastAPI, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +22,6 @@ try:
 except ModuleNotFoundError:
     from api.ai_prediction import call_ai_prediction_analysis, get_ai_prediction_config, save_ai_prediction_config, stream_ai_prediction_analysis, test_ai_provider_connection
     from api.model_storage import resolve_model_path
-from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
 from Data_CrawlProcess import env
 from Data_CrawlProcess.champion_stats_sync import (
     get_cached_opgg_champion_detail,
@@ -57,6 +55,8 @@ mysql_utils = MySQLUtils()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(BASE_DIR, 'static', 'saved_model')
 FRONTEND_OUT_DIR = os.path.join(BASE_DIR, 'frontend', 'out')
+SERVICE_MODE = os.getenv('DEEPWIN_SERVICE_MODE', 'full').strip().lower() or 'full'
+MODEL_SERVICE_ENABLED = SERVICE_MODE in {'full', 'model'}
 TENCENT_RANK_URL = 'https://x1-6833.native.qq.com/x1/6833/1061021&3af49f'
 TENCENT_CN_LANES = [
     ('top', 'TOP'),
@@ -233,16 +233,38 @@ async def request_context_middleware(req: FastAPIRequest, call_next):
         _current_json.reset(json_token)
         _current_request.reset(request_token)
 
-MODEL_LOCAL_PATH = resolve_model_path(os.path.join(MODEL_DIR, 'BILSTM_Att.pt'), rich_logger)
-try:
-    if not os.path.exists(MODEL_LOCAL_PATH):
-        raise FileNotFoundError(f"model file not found: {MODEL_LOCAL_PATH}")
-    model = BiLSTMModelWithAttention(input_size=32, hidden_size=1024, num_layers=2, output_size=1)
-    model.load_state_dict(torch.load(MODEL_LOCAL_PATH, map_location=torch.device('cpu'), weights_only=True))
-    model.eval()
-except Exception as e:
-    rich_logger.error(f"model load failed: {e}")
-    model = None
+def _load_prediction_model():
+    if not MODEL_SERVICE_ENABLED:
+        rich_logger.info(f"model service disabled by DEEPWIN_SERVICE_MODE={SERVICE_MODE}")
+        return None, ''
+
+    model_path = resolve_model_path(os.path.join(MODEL_DIR, 'BILSTM_Att.pt'), rich_logger)
+    try:
+        import torch
+        from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
+
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"model file not found: {model_path}")
+        loaded_model = BiLSTMModelWithAttention(input_size=32, hidden_size=1024, num_layers=2, output_size=1)
+        loaded_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
+        loaded_model.eval()
+        return loaded_model, model_path
+    except Exception as e:
+        rich_logger.error(f"model load failed: {e}")
+        return None, model_path
+
+
+model, MODEL_LOCAL_PATH = _load_prediction_model()
+
+
+def _model_unavailable_response():
+    if MODEL_SERVICE_ENABLED:
+        return None
+    return json_response({
+        'error': 'model service is disabled',
+        'serviceMode': SERVICE_MODE,
+        'message': '当前后端以轻量数据模式运行，预测接口请指向完整模型服务。',
+    }, status_code=503)
 
 
 @app.route('/riot.txt')
@@ -399,6 +421,8 @@ def _prediction_tensor(payload):
     if model is None:
         raise RuntimeError('prediction model is not loaded')
 
+    import torch
+
     vector = [
         _float_or_zero(payload[side][field])
         for side, field in PREDICTION_VECTOR_FIELDS
@@ -407,6 +431,8 @@ def _prediction_tensor(payload):
 
 
 def _predict_rate(payload):
+    import torch
+
     with torch.no_grad():
         return float(model(_prediction_tensor(payload)).item())
 
@@ -1005,6 +1031,10 @@ def _compact_prediction_team(team):
 
 @app.route('/predict_pro_match', methods=['POST'])
 def predict_pro_match():
+    unavailable = _model_unavailable_response()
+    if unavailable:
+        return unavailable
+
     data = request.json or {}
     league = data.get('league') or data.get('leagueKey') or 'LPL'
     home_side = data.get('homeTeam') or {}
@@ -1051,6 +1081,10 @@ def predict_pro_match():
 
 @app.route('/predict_pro_game', methods=['POST'])
 def predict_pro_game():
+    unavailable = _model_unavailable_response()
+    if unavailable:
+        return unavailable
+
     data = request.json or {}
     game = data.get('game') or {}
     if not game:
@@ -1104,6 +1138,10 @@ def pro_stats_sync_run():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    unavailable = _model_unavailable_response()
+    if unavailable:
+        return unavailable
+
     try:
         data = request.json or {}
         response = _calibrated_lineup_prediction(data)
@@ -1161,6 +1199,8 @@ def ai_prediction_test():
 @app.route('/model_diagnostics', methods=['GET'])
 def model_diagnostics():
     return jsonify({
+        'serviceMode': SERVICE_MODE,
+        'modelServiceEnabled': MODEL_SERVICE_ENABLED,
         'modelLoaded': model is not None,
         'vectorFields': len(PREDICTION_VECTOR_FIELDS),
         'modelPath': MODEL_LOCAL_PATH,

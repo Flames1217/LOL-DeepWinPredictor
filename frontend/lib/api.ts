@@ -467,12 +467,17 @@ const opggPositionToRole: Record<string, Role> = {
 }
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+const MODEL_API_BASE_URL = (process.env.NEXT_PUBLIC_MODEL_API_BASE_URL || API_BASE_URL).replace(/\/$/, '')
 
-function apiUrl(path: string) {
+function apiUrl(path: string, baseUrl = API_BASE_URL) {
   if (/^https?:\/\//i.test(path)) {
     return path
   }
-  return `${API_BASE_URL}${path}`
+  return `${baseUrl}${path}`
+}
+
+function modelApiUrl(path: string) {
+  return apiUrl(path, MODEL_API_BASE_URL)
 }
 
 async function getJson<T>(url: string): Promise<T> {
@@ -515,7 +520,7 @@ export const fetchProSchedule = (params?: { league?: string; refresh?: boolean }
   return getJson<ApiProScheduleResponse>(`/query_pro_schedule${query ? `?${query}` : ''}`)
 }
 export async function predictProMatch(payload: unknown) {
-  const response = await fetch(apiUrl('/predict_pro_match'), {
+  const response = await fetch(modelApiUrl('/predict_pro_match'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -528,7 +533,7 @@ export async function predictProMatch(payload: unknown) {
 }
 
 export async function predictProGame(payload: unknown) {
-  const response = await fetch(apiUrl('/predict_pro_game'), {
+  const response = await fetch(modelApiUrl('/predict_pro_game'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -587,7 +592,7 @@ export const fetchChampionDetail = (params: {
 }
 
 export async function predictLineup(payload: unknown) {
-  const response = await fetch(apiUrl('/predict'), {
+  const response = await fetch(modelApiUrl('/predict'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -692,7 +697,13 @@ export async function testAiProvider(payload: unknown = {}) {
   return data as ApiPredictionAnalysis
 }
 
-export const fetchModelDiagnostics = () => getJson<Record<string, unknown>>('/model_diagnostics')
+export const fetchModelDiagnostics = async () => {
+  const response = await fetch(modelApiUrl('/model_diagnostics'))
+  if (!response.ok) {
+    throw new Error(`/model_diagnostics returned ${response.status}`)
+  }
+  return response.json() as Promise<Record<string, unknown>>
+}
 
 export function normalizeChampions(
   heroes: ApiHero[] = [],

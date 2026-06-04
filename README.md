@@ -15,12 +15,6 @@
   <img src="https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/mysql.svg" width="18" style="vertical-align:-3px" alt="MySQL"> MySQL
 </p>
 
-<p>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor&project-name=lol-deepwinpredictor&repository-name=LOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://vercel.com/button" alt="Deploy with Vercel"></a>
-  <a href="https://app.netlify.com/start/deploy?repository=https://github.com/Flames1217/LOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://www.netlify.com/img/deploy/button.svg" alt="Deploy to Netlify"></a>
-  <a href="https://edgeone.ai/pages/new?repository-url=https%3A%2F%2Fgithub.com%2FFlames1217%2FLOL-DeepWinPredictor" target="_blank" rel="noopener noreferrer"><img src="https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg" alt="Deploy with EdgeOne Pages"></a>
-</p>
-
 LOL-DeepWinPredictor 是一个面向英雄联盟职业赛事的数据分析与胜率预测系统。项目使用本地 BiLSTM-Attention 模型做基础推理，并接入 `101.qq.com`、`OP.GG`、`esports.op.gg`、`lpl.qq.com` 的实时数据接口，提供阵容胜率预测、职业赛程预测、小场预测、英雄/战队/选手数据面板、比赛详情和流式 AI 分析。
 
 当前版本已迁移到 **FastAPI + Next.js 静态前端**。后端负责模型推理、数据同步、缓存、AI 提供商调用和 API；前端负责交互式预测、数据面板和职业赛程展示。
@@ -145,13 +139,15 @@ python -m api.app
 | --- | --- | --- |
 | `HOST` | FastAPI 监听地址，默认 `0.0.0.0` | 否 |
 | `PORT` | FastAPI 端口，默认 `7777` | 否 |
+| `DEEPWIN_SERVICE_MODE` | 后端服务模式：`full`、`lite`、`model`，默认 `full` | 否 |
 | `MYSQL_URL` | MySQL 连接字符串，仅用于站点访问统计；留空则关闭数据库写入 | 否 |
 | `MODEL_URL` | 远程模型文件地址；支持 HTTPS 直连、WebDAV HTTPS、公开 `s3://bucket/key` 和 S3/R2/OSS 预签名 HTTPS | 否 |
 | `AI_PROVIDER` | AI 提供商，例如 `openai-compatible`、`openai`、`ollama` | 否 |
 | `AI_BASE_URL` | OpenAI Compatible Base URL，例如 `https://api.example.com/v1` | 否 |
 | `AI_API_KEY` | AI API Key | 否 |
 | `AI_MODEL` | AI 模型名 | 否 |
-| `NEXT_PUBLIC_API_BASE_URL` | 前后端分离部署时的后端 API 域名 | 否 |
+| `NEXT_PUBLIC_API_BASE_URL` | 前端访问轻量数据 API 的域名 | 否 |
+| `NEXT_PUBLIC_MODEL_API_BASE_URL` | 前端访问预测模型 API 的域名；留空时跟随 `NEXT_PUBLIC_API_BASE_URL` | 否 |
 | `PROXIES` | 请求外部源站时使用的代理 | 否 |
 
 最小示例：
@@ -159,9 +155,11 @@ python -m api.app
 ```bash
 HOST=0.0.0.0
 PORT=7777
+DEEPWIN_SERVICE_MODE=full
 MYSQL_URL=mysql://user:password@127.0.0.1:3306/lol_deepwinpredictor?charset=utf8mb4
 MODEL_URL=https://cdn.example.com/models/BILSTM_Att.pt
 NEXT_PUBLIC_API_BASE_URL=https://api.example.com
+NEXT_PUBLIC_MODEL_API_BASE_URL=https://model-api.example.com
 ```
 
 ### 远程模型 URL
@@ -249,52 +247,31 @@ curl -X POST "http://127.0.0.1:7777/pro_stats_sync/run?league=LPL"
 
 ## ☁️ 部署
 
-### 方案 A：Vercel / Netlify 前端 + Render / Northflank 后端
+项目现在按部署职责拆成两类服务：
 
-这是最推荐的生产形态：前端走静态托管，FastAPI 后端部署到支持常驻 Python 进程的平台。
+- **完整服务**：`DEEPWIN_SERVICE_MODE=full`，包含数据接口、AI 分析和 PyTorch 模型推理，使用 `requirements.txt`。
+- **轻量服务**：`DEEPWIN_SERVICE_MODE=lite`，只提供英雄、战队、选手、赛程、比赛详情、AI 配置/分析和访问统计，不加载 PyTorch，使用 `requirements-lite.txt`。
+- **模型服务**：`DEEPWIN_SERVICE_MODE=model`，用于单独承载预测接口；前端通过 `NEXT_PUBLIC_MODEL_API_BASE_URL` 指向它。
 
-前端：
+如果暂时只部署一套后端，使用完整服务即可。如果以后要拆分部署，前端数据接口走 `NEXT_PUBLIC_API_BASE_URL`，预测接口走 `NEXT_PUBLIC_MODEL_API_BASE_URL`。
 
-1. 在 Vercel 或 Netlify 导入仓库。
-2. Root Directory 选择 `frontend`。
-3. Build Command 使用 `npm run build`。
-4. Output Directory 使用 `out`。
-5. 配置 `NEXT_PUBLIC_API_BASE_URL=https://api.example.com`。
+### 方案 A：Hugging Face Spaces
 
-后端：
+推荐创建 **Docker Space**，因为项目同时包含 FastAPI、Next.js 静态前端和 PyTorch 推理，Docker Space 最省心。
 
-1. 在 Render、Northflank、Fly.io、Koyeb、Railway 或 VPS 上创建 Python 服务。
-2. Build Command: `pip install -r requirements.txt`
-3. Start Command: `python -m api.app`
-4. 配置 `PORT=7777`、`MODEL_URL`、`MYSQL_URL` 和 AI 相关变量。
-5. 如果平台自动注入 `PORT`，以后端平台注入值为准。
+1. 在 Hugging Face 新建 Space，SDK 选择 `Docker`。
+2. 连接或上传本仓库。
+3. 在 Space 的 Secrets / Variables 中配置：
+   - `PORT=7777`
+   - `DEEPWIN_SERVICE_MODE=full`
+   - `MODEL_URL=https://.../BILSTM_Att.pt`（仓库内已有模型时可留空）
+   - `MYSQL_URL=mysql://user:password@host:3306/db?charset=utf8mb4`（可选）
+   - `AI_PROVIDER`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL`（可选）
+4. Space 会按 `Dockerfile` 构建并启动 `python -m api.app`。
 
-### 方案 B：EdgeOne Pages / EdgeOne 全栈
+如果只想在 Hugging Face 上跑轻量数据服务，可以把构建参数改成 `REQUIREMENTS_FILE=requirements-lite.txt`，并设置 `DEEPWIN_SERVICE_MODE=lite`。这种模式不会安装或加载 PyTorch，但预测相关接口会返回 503。
 
-EdgeOne Pages 可以承载前端静态页面，也提供 Cloud Functions 全栈能力；官方 Python 运行时支持 FastAPI/ASGI。不过当前仓库是 **Next.js 静态前端 + Python FastAPI/PyTorch 后端** 的结构，完整后端包含 PyTorch 和模型推理依赖，直接塞进 EdgeOne Pages 函数很可能遇到函数包体、冷启动和执行时长限制。
-
-如果使用截图里的 EdgeOne Pages 创建页，建议这样填写：
-
-| 配置项 | 推荐值 |
-| --- | --- |
-| 项目名称 | `LOL-DeepWinPredictor` |
-| 仓库名称 | `LOL-DeepWinPredictor` |
-| 加速区域 | 按目标用户选择；国内访问优先选择包含中国大陆的区域 |
-| 仓库属性 | 开源项目可选公共；私有部署选私有 |
-| 根目录 | `frontend` |
-| 安装命令 | `npm install` |
-| 构建命令 | `npm run build` |
-| 输出目录 | `out` |
-| 环境变量 | `NEXT_PUBLIC_API_BASE_URL=https://你的后端域名` |
-
-推荐生产部署形态：
-
-1. **稳妥方案**：EdgeOne Pages 部署 `frontend/out`，FastAPI 后端放在 Render、Northflank、VPS 或 Docker 容器平台。
-2. **瘦身全栈方案**：如果只保留轻量 API、AI 文本分析、访问统计或代理查询，可以把这些接口做成 `cloud-functions/api/index.py`，让 EdgeOne Pages 同时部署前端和函数。
-3. **完整模型后端**：涉及 PyTorch、`MODEL_URL` 下载、本地模型推理和长时间源站同步时，建议继续使用常驻 Python 服务。EdgeOne 负责前端、CDN 和域名加速，后端用 `NEXT_PUBLIC_API_BASE_URL` 指向外部 FastAPI 服务。
-4. **失败回退**：如果遇到 PyTorch 包体过大、冷启动过慢、模型文件无法持久缓存、源站同步超时或 Python 运行时不匹配，就把后端拆回常驻服务，只让 EdgeOne 承载前端和 CDN 加速。
-
-### 方案 C：手动部署
+### 方案 B：手动部署
 
 ```bash
 git clone git@github.com:Flames1217/LOL-DeepWinPredictor.git
@@ -310,6 +287,7 @@ npm run build
 cd ..
 
 set PORT=7777
+set DEEPWIN_SERVICE_MODE=full
 python -m api.app
 ```
 
@@ -317,18 +295,39 @@ Linux / macOS:
 
 ```bash
 export PORT=7777
+export DEEPWIN_SERVICE_MODE=full
 python -m api.app
 ```
 
-### 方案 D：Docker
+轻量服务：
+
+```bash
+pip install -r requirements-lite.txt
+set DEEPWIN_SERVICE_MODE=lite
+python -m api.app
+```
+
+### 方案 C：Docker
 
 ```bash
 docker build -t lol-deepwinpredictor .
 docker run -p 7777:7777 \
   -e PORT=7777 \
+  -e DEEPWIN_SERVICE_MODE=full \
   -e MODEL_URL=https://cdn.example.com/models/BILSTM_Att.pt \
   -e MYSQL_URL=mysql://user:password@host:3306/lol_deepwinpredictor?charset=utf8mb4 \
   lol-deepwinpredictor
+```
+
+轻量服务：
+
+```bash
+docker build --build-arg REQUIREMENTS_FILE=requirements-lite.txt -t lol-deepwinpredictor-lite .
+docker run -p 7777:7777 \
+  -e PORT=7777 \
+  -e DEEPWIN_SERVICE_MODE=lite \
+  -e MYSQL_URL=mysql://user:password@host:3306/lol_deepwinpredictor?charset=utf8mb4 \
+  lol-deepwinpredictor-lite
 ```
 
 ## 🛠️ 开发命令
