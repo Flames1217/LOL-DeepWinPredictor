@@ -123,6 +123,31 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git lfs install --local
           git lfs track "*.png" "*.jpg" "*.jpeg" "*.webp" "*.ico" "*.woff" "*.woff2" "*.ttf" "*.otf" "*.pt"
+          LFS_PATTERNS=("*.png" "*.jpg" "*.jpeg" "*.webp" "*.ico" "*.woff" "*.woff2" "*.ttf" "*.otf" "*.pt")
+
+          rebuild_space_history() {
+            echo "Hugging Face 拒绝了历史中的普通二进制文件，开始重建 Space 部署分支并改用 LFS 指针。"
+            clean_branch="hf-clean-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            git checkout --orphan "${clean_branch}"
+            git rm -r --cached . >/dev/null 2>&1 || true
+            git lfs install --local
+            git lfs track "${LFS_PATTERNS[@]}"
+            git add -A
+            git commit -m "重建部署包：${GITHUB_SHA}"
+
+            for clean_attempt in 1 2 3 4; do
+              if git push origin HEAD:main --force-with-lease; then
+                echo "已重建 Hugging Face Space 部署分支。"
+                return 0
+              fi
+
+              sleep_seconds=$((clean_attempt * clean_attempt * 90))
+              echo "重建推送失败，可能仍在限流。第 ${clean_attempt}/4 次失败，等待 ${sleep_seconds}s 后重试。"
+              sleep "${sleep_seconds}"
+            done
+
+            return 1
+          }
 
           RSYNC_EXCLUDES=(
             "--exclude=.git/"
@@ -132,6 +157,7 @@ jobs:
           fi
 
           rsync -a --delete --checksum "${RSYNC_EXCLUDES[@]}" "${STAGING_DIR}/" "${SPACE_DIR}/"
+          git lfs track "${LFS_PATTERNS[@]}"
 
           git add -A
 
@@ -145,8 +171,14 @@ jobs:
           git commit -m "同步部署包：${GITHUB_SHA}"
 
           for attempt in 1 2 3 4 5; do
-            if git push origin HEAD:main; then
+            push_log="${RUNNER_TEMP}/hf-push-${attempt}.log"
+            if git push origin HEAD:main 2>&1 | tee "${push_log}"; then
               exit 0
+            fi
+
+            if grep -Eiq "contains binary files|xet|pre-receive hook declined" "${push_log}"; then
+              rebuild_space_history
+              exit $?
             fi
 
             sleep_seconds=$((attempt * attempt * 45))

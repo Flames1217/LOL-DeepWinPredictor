@@ -236,6 +236,8 @@ gh release upload model static/saved_model/BILSTM_Att.pt --clobber
 6. 如果只有少量文件变化，Actions 只提交这些变化；图片、字体、模型等二进制资源按 Git LFS/Xet 跟踪。
 7. Hugging Face Space 收到新提交后自动重新构建 Docker 镜像。
 
+如果同步日志出现 `Your push was rejected because it contains binary files`，说明目标 Space 仓库历史里存在未按 LFS/Xet 跟踪的图片、字体或模型文件。workflow 会自动重建 Hugging Face Space 的部署分支，把当前部署包重新提交为 LFS 指针文件；这只会改写 Hugging Face Space 仓库的部署历史，不会改写 GitHub 主仓库历史。
+
 如果同步日志出现 `429`，通常是 Hugging Face Git/构建接口限流。workflow 会自动退避重试；新版同步流程会先比较差异，避免每次强推整包，从而减少 429 触发概率。如果重试耗尽，稍后在 GitHub Actions 手动重新运行即可。
 
 ### GitHub 自动发布 Release
