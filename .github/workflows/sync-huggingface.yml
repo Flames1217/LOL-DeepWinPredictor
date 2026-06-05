@@ -28,8 +28,11 @@ jobs:
 
       - name: 准备部署包
         env:
+          GH_TOKEN: ${{ github.token }}
           MODEL_URL_SECRET: ${{ secrets.MODEL_URL }}
           MODEL_URL_VAR: ${{ vars.MODEL_URL }}
+          MODEL_RELEASE_TAG: ${{ vars.MODEL_RELEASE_TAG || 'model' }}
+          MODEL_RELEASE_ASSET: ${{ vars.MODEL_RELEASE_ASSET || 'BILSTM_Att.pt' }}
         run: |
           set -euo pipefail
 
@@ -50,14 +53,43 @@ jobs:
           find "${STAGING_DIR}" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
 
           MODEL_URL="${MODEL_URL_SECRET:-${MODEL_URL_VAR:-}}"
+          MODEL_PATH="${STAGING_DIR}/static/saved_model/BILSTM_Att.pt"
+          downloaded_model=0
           if [ -n "${MODEL_URL}" ]; then
             mkdir -p "${STAGING_DIR}/static/saved_model"
-            echo "正在下载模型到 static/saved_model/BILSTM_Att.pt"
-            curl -L --fail --retry 5 --retry-delay 10 --retry-all-errors \
+            echo "正在从 MODEL_URL 下载模型到 static/saved_model/BILSTM_Att.pt"
+            if curl -L --fail --retry 3 --retry-delay 10 --retry-all-errors \
               "${MODEL_URL}" \
-              -o "${STAGING_DIR}/static/saved_model/BILSTM_Att.pt"
-          else
-            echo "未配置 GitHub MODEL_URL，保留 Hugging Face Space 仓库中已有模型。"
+              -o "${MODEL_PATH}"; then
+              downloaded_model=1
+            else
+              echo "::warning::MODEL_URL 下载失败，将尝试 GitHub Release Asset。"
+              rm -f "${MODEL_PATH}"
+            fi
+          fi
+
+          if [ "${downloaded_model}" -eq 0 ]; then
+            mkdir -p "${STAGING_DIR}/static/saved_model"
+            if gh release view "${MODEL_RELEASE_TAG}" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              echo "正在从 GitHub Release ${MODEL_RELEASE_TAG} 下载 ${MODEL_RELEASE_ASSET}"
+              gh release download "${MODEL_RELEASE_TAG}" \
+                -R "${GITHUB_REPOSITORY}" \
+                -p "${MODEL_RELEASE_ASSET}" \
+                -D "${STAGING_DIR}/static/saved_model" \
+                --clobber
+              if [ -f "${STAGING_DIR}/static/saved_model/${MODEL_RELEASE_ASSET}" ] && [ "${MODEL_RELEASE_ASSET}" != "BILSTM_Att.pt" ]; then
+                mv "${STAGING_DIR}/static/saved_model/${MODEL_RELEASE_ASSET}" "${MODEL_PATH}"
+              fi
+              if [ -f "${MODEL_PATH}" ]; then
+                downloaded_model=1
+              fi
+            else
+              echo "未找到 GitHub Release ${MODEL_RELEASE_TAG}，保留 Hugging Face Space 仓库中已有模型。"
+            fi
+          fi
+
+          if [ "${downloaded_model}" -eq 0 ]; then
+            rm -rf "${STAGING_DIR}/static/saved_model"
           fi
 
           echo "部署包目录：${STAGING_DIR}"
@@ -67,8 +99,6 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE_ID: ${{ vars.HF_SPACE_ID || secrets.HF_SPACE_ID }}
-          MODEL_URL_SECRET: ${{ secrets.MODEL_URL }}
-          MODEL_URL_VAR: ${{ vars.MODEL_URL }}
         run: |
           set -euo pipefail
           if [ -z "${HF_TOKEN}" ]; then
@@ -94,11 +124,10 @@ jobs:
           git lfs install --local
           git lfs track "*.png" "*.jpg" "*.jpeg" "*.webp" "*.ico" "*.woff" "*.woff2" "*.ttf" "*.otf" "*.pt"
 
-          MODEL_URL="${MODEL_URL_SECRET:-${MODEL_URL_VAR:-}}"
           RSYNC_EXCLUDES=(
             "--exclude=.git/"
           )
-          if [ -z "${MODEL_URL}" ]; then
+          if [ ! -f "${STAGING_DIR}/static/saved_model/BILSTM_Att.pt" ]; then
             RSYNC_EXCLUDES+=("--exclude=static/saved_model/")
           fi
 

@@ -197,13 +197,40 @@ Hugging Face Space 的运行时配置：
 | --- | --- |
 | Secret `HF_TOKEN` | Hugging Face Access Token，需要对目标 Space 有写入权限 |
 | Variable 或 Secret `HF_SPACE_ID` | Hugging Face Space ID，例如 `username/LOL-DeepWinPredictor` |
-| Secret 或 Variable `MODEL_URL` | 可选。Actions 同步时下载模型文件，并写入 Hugging Face Space 仓库的 `static/saved_model/BILSTM_Att.pt` |
+| Secret 或 Variable `MODEL_URL` | 可选。普通 HTTPS 直链；不建议填 WebDAV API 地址 |
+| Variable `MODEL_RELEASE_TAG` | 可选，默认 `model` |
+| Variable `MODEL_RELEASE_ASSET` | 可选，默认 `BILSTM_Att.pt` |
+
+模型推荐放法：
+
+| 方式 | 推荐度 | 说明 |
+| --- | --- | --- |
+| GitHub Release Asset | 推荐 | 把 `BILSTM_Att.pt` 上传到当前仓库的 Release，Action 自动下载并写入 HF Space 的 `static/saved_model/BILSTM_Att.pt` |
+| HTTPS 直链 | 可用 | 只适合真正能被 `curl -L` 直接下载的文件链接 |
+| WebDAV 地址 | 不推荐 | 坚果云、TeraCloud 等 WebDAV API 通常需要认证头或特殊客户端，直接填 URL 容易 400/401/302 |
+| S3/R2 私有桶 | 不推荐 | 私有桶需要签名 URL；公开桶可能产生额外费用 |
+
+创建模型 Release 的本地命令：
+
+```bash
+gh release create model static/saved_model/BILSTM_Att.pt \
+  --title "模型权重" \
+  --notes "BiLSTM-Attention 预测模型"
+```
+
+如果 Release 已存在，用下面命令覆盖上传：
+
+```bash
+gh release upload model static/saved_model/BILSTM_Att.pt --clobber
+```
+
+上传后，GitHub Actions 不需要 `MODEL_URL` 也能从 Release Asset 下载模型。模型最终会进入 Hugging Face Space 仓库的 `static/saved_model/BILSTM_Att.pt`，容器启动时对应 `/app/static/saved_model/BILSTM_Att.pt`。
 
 流程：
 
 1. GitHub 推送到 `main`。
 2. Actions 生成 Hugging Face 部署包，只包含运行所需的后端、前端源码、Dockerfile、依赖文件和 README。
-3. 如果 GitHub 配置了 `MODEL_URL`，Actions 会下载模型到部署包的 `static/saved_model/BILSTM_Att.pt`。
+3. Actions 先尝试 `MODEL_URL`；如果失败或未配置，再尝试 GitHub Release Asset。
 4. Actions clone 目标 Hugging Face Space 仓库，再用 `rsync --checksum --delete` 做增量同步。
 5. 如果文件内容没有变化，Actions 会直接退出，不会提交和推送。
 6. 如果只有少量文件变化，Actions 只提交这些变化；图片、字体、模型等二进制资源按 Git LFS/Xet 跟踪。
