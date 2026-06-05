@@ -317,6 +317,8 @@ def query_win_rate():
         allow_sync=True,
         game_type=game_type,
     )
+    payload = dict(payload)
+    payload['heroes'] = get_tencent_hero_metadata()
     return jsonify(payload)
 
 
