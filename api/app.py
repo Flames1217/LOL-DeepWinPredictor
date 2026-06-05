@@ -205,6 +205,11 @@ def render_template(filename):
     )
 
 
+def current_request_method():
+    current = _current_request.get()
+    return current.method.upper() if current else 'GET'
+
+
 request = _RequestProxy()
 app = DeepWinAPI(title='LOL-DeepWinPredictor API', version='2026.05.30')
 app.add_middleware(
@@ -240,12 +245,16 @@ def _load_prediction_model():
         return None, ''
 
     model_path = resolve_model_path(os.path.join(MODEL_DIR, 'BILSTM_Att.pt'), rich_logger)
+    if not os.path.exists(model_path):
+        rich_logger.warning(
+            f"prediction model unavailable; set MODEL_URL or DEEPWIN_SERVICE_MODE=lite: {model_path}"
+        )
+        return None, model_path
+
     try:
         import torch
         from BILSTM_Att.BILSTM_Att import BiLSTMModelWithAttention
 
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"model file not found: {model_path}")
         loaded_model = BiLSTMModelWithAttention(input_size=32, hidden_size=1024, num_layers=2, output_size=1)
         loaded_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
         loaded_model.eval()
@@ -269,15 +278,16 @@ def _model_unavailable_response():
     }, status_code=503)
 
 
-@app.route('/riot.txt')
+@app.route('/riot.txt', methods=['GET', 'HEAD'])
 def serve_riot_txt():
     return send_from_directory(os.path.abspath(os.path.dirname(__file__) + '/../'), 'riot.txt', mimetype='text/plain')
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'HEAD'])
 def index():
-    ip = request.remote_addr
-    mysql_utils.record_visit(ip)
+    if current_request_method() == 'GET':
+        ip = request.remote_addr
+        mysql_utils.record_visit(ip)
     if os.path.exists(os.path.join(FRONTEND_OUT_DIR, 'index.html')):
         return send_from_directory(FRONTEND_OUT_DIR, 'index.html')
     return render_template('index.html')
@@ -1235,12 +1245,12 @@ def model_diagnostics():
     })
 
 
-@app.route('/_next/{filename:path}')
+@app.route('/_next/{filename:path}', methods=['GET', 'HEAD'])
 def serve_next_assets(filename):
     return send_from_directory(os.path.join(FRONTEND_OUT_DIR, '_next'), filename)
 
 
-@app.route('/{frontend_path:path}')
+@app.route('/{frontend_path:path}', methods=['GET', 'HEAD'])
 def serve_frontend_page(frontend_path):
     if not os.path.isdir(FRONTEND_OUT_DIR):
         return render_template('index.html')

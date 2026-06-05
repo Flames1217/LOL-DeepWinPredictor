@@ -185,6 +185,8 @@ Hugging Face Space 的运行时配置：
 | 需要远程推理服务 | 主站设置 `DEEPWIN_SERVICE_MODE=lite`，前端构建时设置 `NEXT_PUBLIC_MODEL_API_BASE_URL` |
 | 需要 AI 分析 | 配置 `AI_PROVIDER`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` |
 
+如果 Hugging Face Space 没有配置 `MODEL_URL`，建议把 `DEEPWIN_SERVICE_MODE` 设置为 `lite`。这样页面、英雄数据、战队数据、选手数据和职业赛程仍会正常运行，模型预测接口会明确降级；如果保持 `full` 但没有模型文件，服务也会启动，只是预测接口返回 503。
+
 注意：`HF_TOKEN`、`HF_SPACE_ID`、`OPENROUTER_API_KEY` 是 GitHub Actions 使用的配置，不要填到 Hugging Face Space 运行时变量里。
 
 ### GitHub 自动同步到 Hugging Face
