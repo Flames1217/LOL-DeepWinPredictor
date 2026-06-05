@@ -7,6 +7,7 @@ export interface Champion {
   keywords?: string
   dataSource?: 'global' | 'cn'
   sourceLabel?: string
+  searchOnly?: boolean
   role: 'TOP' | 'JUN' | 'MID' | 'ADC' | 'SUP'
   imageUrl?: string
   banRate: number

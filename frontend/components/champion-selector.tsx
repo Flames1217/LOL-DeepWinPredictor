@@ -26,6 +26,22 @@ interface ChampionSelectorProps {
   team: 'blue' | 'red'
 }
 
+function normalizeSearchText(value: string) {
+  return value.trim().toLocaleLowerCase()
+}
+
+function championSearchText(champion: Champion) {
+  return [
+    champion.name,
+    champion.en,
+    champion.keywords,
+    champion.heroId,
+  ]
+    .filter((item) => item !== undefined && item !== null)
+    .join(',')
+    .toLocaleLowerCase()
+}
+
 export function ChampionSelector({
   role,
   selectedChampion,
@@ -39,7 +55,7 @@ export function ChampionSelector({
 
   // 根据位置筛选英雄
   const roleChampions = useMemo(
-    () => champions.filter((c) => c.role === role),
+    () => champions.filter((c) => c.role === role && !c.searchOnly),
     [champions, role]
   )
 
@@ -66,14 +82,18 @@ export function ChampionSelector({
   )
 
   const filteredChampions = useMemo(() => {
-    const query = searchQuery.trim()
+    const query = normalizeSearchText(searchQuery)
     if (!query) return roleChampions
+    const directMatches = searchableChampions.filter((champion) => championSearchText(champion).includes(query))
+    if (directMatches.length) return directMatches
     return fuse.search(query).map((result) => result.item)
-  }, [searchQuery, fuse, roleChampions])
+  }, [searchQuery, fuse, roleChampions, searchableChampions])
 
   const selectedChampionData = useMemo(
-    () => champions.find((c) => c.en === selectedChampion),
-    [champions, selectedChampion]
+    () =>
+      champions.find((c) => c.en === selectedChampion && c.role === role) ||
+      champions.find((c) => c.en === selectedChampion),
+    [champions, role, selectedChampion]
   )
 
   const getImageUrl = (championKey: string) =>
@@ -250,7 +270,11 @@ export function BanSlot({
     const grouped = new Map<string, Champion>()
     champions.forEach((champion) => {
       const existing = grouped.get(champion.en)
-      if (!existing || (roleFilter !== 'ALL' && champion.role === roleFilter)) {
+      if (
+        !existing ||
+        (existing.searchOnly && !champion.searchOnly) ||
+        (roleFilter !== 'ALL' && champion.role === roleFilter && !champion.searchOnly)
+      ) {
         grouped.set(champion.en, champion)
       }
     })
@@ -258,7 +282,7 @@ export function BanSlot({
   }, [champions, roleFilter])
 
   const roleChampions = useMemo(
-    () => roleFilter === 'ALL' ? uniqueChampions : uniqueChampions.filter((champion) => champion.role === roleFilter),
+    () => roleFilter === 'ALL' ? uniqueChampions : uniqueChampions.filter((champion) => champion.role === roleFilter && !champion.searchOnly),
     [roleFilter, uniqueChampions]
   )
 
@@ -273,8 +297,11 @@ export function BanSlot({
   )
 
   const filteredChampions = useMemo(() => {
-    if (!searchQuery) return roleChampions
-    return fuse.search(searchQuery).map((result) => result.item)
+    const query = normalizeSearchText(searchQuery)
+    if (!query) return roleChampions
+    const directMatches = roleChampions.filter((champion) => championSearchText(champion).includes(query))
+    if (directMatches.length) return directMatches
+    return fuse.search(query).map((result) => result.item)
   }, [roleChampions, searchQuery, fuse])
 
   const championData = champion

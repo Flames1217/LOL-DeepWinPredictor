@@ -820,6 +820,38 @@ export function normalizeChampions(
     }
   })
 
+  heroes.forEach((hero, index) => {
+    const heroId = Number(hero.heroId)
+    if (!Number.isFinite(heroId) || heroId <= 0) return
+
+    const alias = hero.alias || String(heroId)
+    roles.forEach((role) => {
+      const key = `${source}-${heroId}-${role}`
+      if (championByRole.has(key)) return
+
+      championByRole.set(key, {
+        id: `${source}-search-${heroId}-${role}`,
+        heroId,
+        name: hero.name || alias,
+        en: alias,
+        keywords: hero.keywords || [hero.name, alias, heroId].filter(Boolean).join(','),
+        dataSource: source,
+        sourceLabel: source === 'cn' ? '中国区 · 101' : '全球 · OP.GG',
+        searchOnly: true,
+        role,
+        imageUrl: hero.heroLogo || `/lol_champion_icon/${heroId}.png`,
+        banRate: 0,
+        pickRate: 0,
+        presenceRate: 0,
+        roleRate: 0,
+        winRate: getLaneWinRate(laneStats, heroId, role),
+        winRateDelta: 0,
+        games: 0,
+        sortIndex: 100000 + index,
+      })
+    })
+  })
+
   return Array.from(championByRole.values()).sort((a, b) => {
     const roleDelta = roles.indexOf(a.role) - roles.indexOf(b.role)
     if (roleDelta !== 0) return roleDelta
