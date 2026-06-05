@@ -26,33 +26,49 @@ jobs:
           sudo apt-get install -y git-lfs rsync
           git lfs install
 
-      - name: 生成 Hugging Face 部署目录
+      - name: 准备部署包
+        env:
+          MODEL_URL_SECRET: ${{ secrets.MODEL_URL }}
+          MODEL_URL_VAR: ${{ vars.MODEL_URL }}
         run: |
           set -euo pipefail
 
-          DEPLOY_DIR="${RUNNER_TEMP}/hf-space"
-          rm -rf "${DEPLOY_DIR}"
-          mkdir -p "${DEPLOY_DIR}"
+          STAGING_DIR="${RUNNER_TEMP}/hf-staging"
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
 
-          rsync -a README.md Dockerfile requirements.txt requirements-lite.txt main.py .env.example "${DEPLOY_DIR}/"
-          rsync -a api BILSTM_Att Data_CrawlProcess tool_utils frontend "${DEPLOY_DIR}/"
+          rsync -a README.md Dockerfile requirements.txt requirements-lite.txt main.py .env.example .gitattributes "${STAGING_DIR}/"
+          rsync -a api BILSTM_Att Data_CrawlProcess tool_utils frontend "${STAGING_DIR}/"
 
           rm -rf \
-            "${DEPLOY_DIR}/frontend/.next" \
-            "${DEPLOY_DIR}/frontend/out" \
-            "${DEPLOY_DIR}/frontend/node_modules" \
-            "${DEPLOY_DIR}/frontend/tsconfig.tsbuildinfo"
+            "${STAGING_DIR}/frontend/.next" \
+            "${STAGING_DIR}/frontend/out" \
+            "${STAGING_DIR}/frontend/node_modules" \
+            "${STAGING_DIR}/frontend/tsconfig.tsbuildinfo"
 
-          find "${DEPLOY_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} +
-          find "${DEPLOY_DIR}" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+          find "${STAGING_DIR}" -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find "${STAGING_DIR}" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
 
-          echo "部署目录内容："
-          find "${DEPLOY_DIR}" -maxdepth 3 -type d | sort
+          MODEL_URL="${MODEL_URL_SECRET:-${MODEL_URL_VAR:-}}"
+          if [ -n "${MODEL_URL}" ]; then
+            mkdir -p "${STAGING_DIR}/static/saved_model"
+            echo "正在下载模型到 static/saved_model/BILSTM_Att.pt"
+            curl -L --fail --retry 5 --retry-delay 10 --retry-all-errors \
+              "${MODEL_URL}" \
+              -o "${STAGING_DIR}/static/saved_model/BILSTM_Att.pt"
+          else
+            echo "未配置 GitHub MODEL_URL，保留 Hugging Face Space 仓库中已有模型。"
+          fi
 
-      - name: 推送到 Hugging Face Space
+          echo "部署包目录：${STAGING_DIR}"
+          find "${STAGING_DIR}" -maxdepth 3 -type d | sort
+
+      - name: 增量同步到 Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE_ID: ${{ vars.HF_SPACE_ID || secrets.HF_SPACE_ID }}
+          MODEL_URL_SECRET: ${{ secrets.MODEL_URL }}
+          MODEL_URL_VAR: ${{ vars.MODEL_URL }}
         run: |
           set -euo pipefail
           if [ -z "${HF_TOKEN}" ]; then
@@ -64,27 +80,50 @@ jobs:
             exit 1
           fi
 
-          DEPLOY_DIR="${RUNNER_TEMP}/hf-space"
-          cd "${DEPLOY_DIR}"
+          STAGING_DIR="${RUNNER_TEMP}/hf-staging"
+          SPACE_DIR="${RUNNER_TEMP}/hf-space"
+          rm -rf "${SPACE_DIR}"
 
-          git init
+          export GIT_LFS_SKIP_SMUDGE=1
+          git clone "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_ID}" "${SPACE_DIR}"
+          unset GIT_LFS_SKIP_SMUDGE
+
+          cd "${SPACE_DIR}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git lfs install --local
           git lfs track "*.png" "*.jpg" "*.jpeg" "*.webp" "*.ico" "*.woff" "*.woff2" "*.ttf" "*.otf" "*.pt"
 
-          git add .
+          MODEL_URL="${MODEL_URL_SECRET:-${MODEL_URL_VAR:-}}"
+          RSYNC_EXCLUDES=(
+            "--exclude=.git/"
+          )
+          if [ -z "${MODEL_URL}" ]; then
+            RSYNC_EXCLUDES+=("--exclude=static/saved_model/")
+          fi
+
+          rsync -a --delete --checksum "${RSYNC_EXCLUDES[@]}" "${STAGING_DIR}/" "${SPACE_DIR}/"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Hugging Face Space 已是最新，无需推送。"
+            exit 0
+          fi
+
+          echo "本次同步变更："
+          git status --short
           git commit -m "同步部署包：${GITHUB_SHA}"
 
-          git remote add huggingface "https://hf:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_ID}"
           for attempt in 1 2 3 4 5; do
-            if git push huggingface HEAD:main --force; then
+            if git push origin HEAD:main; then
               exit 0
             fi
 
-            sleep_seconds=$((attempt * attempt * 30))
+            sleep_seconds=$((attempt * attempt * 45))
             echo "Hugging Face 推送失败，可能是 429 限流。第 ${attempt}/5 次失败，等待 ${sleep_seconds}s 后重试。"
             sleep "${sleep_seconds}"
+            git pull --rebase origin main || true
           done
 
           echo "Hugging Face 推送重试耗尽。请稍后手动重新运行 workflow。"

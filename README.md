@@ -185,7 +185,7 @@ Hugging Face Space 的运行时配置：
 | 需要远程推理服务 | 主站设置 `DEEPWIN_SERVICE_MODE=lite`，前端构建时设置 `NEXT_PUBLIC_MODEL_API_BASE_URL` |
 | 需要 AI 分析 | 配置 `AI_PROVIDER`、`AI_BASE_URL`、`AI_API_KEY`、`AI_MODEL` |
 
-如果 Hugging Face Space 没有配置 `MODEL_URL`，建议把 `DEEPWIN_SERVICE_MODE` 设置为 `lite`。这样页面、英雄数据、战队数据、选手数据和职业赛程仍会正常运行，模型预测接口会明确降级；如果保持 `full` 但没有模型文件，服务也会启动，只是预测接口返回 503。
+如果 Hugging Face Space 仓库内已经存在 `static/saved_model/BILSTM_Att.pt`，运行时不需要再配置 `MODEL_URL`，服务会直接从 `/app/static/saved_model/BILSTM_Att.pt` 加载模型。如果仓库内没有模型，也没有在 Space 运行时配置 `MODEL_URL`，建议把 `DEEPWIN_SERVICE_MODE` 设置为 `lite`；页面、英雄数据、战队数据、选手数据和职业赛程仍会正常运行，预测接口会明确降级。
 
 注意：`HF_TOKEN`、`HF_SPACE_ID`、`OPENROUTER_API_KEY` 是 GitHub Actions 使用的配置，不要填到 Hugging Face Space 运行时变量里。
 
@@ -197,17 +197,19 @@ Hugging Face Space 的运行时配置：
 | --- | --- |
 | Secret `HF_TOKEN` | Hugging Face Access Token，需要对目标 Space 有写入权限 |
 | Variable 或 Secret `HF_SPACE_ID` | Hugging Face Space ID，例如 `username/LOL-DeepWinPredictor` |
+| Secret 或 Variable `MODEL_URL` | 可选。Actions 同步时下载模型文件，并写入 Hugging Face Space 仓库的 `static/saved_model/BILSTM_Att.pt` |
 
 流程：
 
 1. GitHub 推送到 `main`。
-2. Actions 生成 Hugging Face 部署目录，只包含运行所需的后端、前端源码、Dockerfile、依赖文件和 README。
-3. Actions 排除本地缓存、构建产物、日志、临时文件和训练缓存。
-4. Actions 将图片、字体、模型等二进制资源按 Git LFS/Xet 方式提交，避免 Hugging Face 拒绝普通二进制推送。
-5. Actions 推送部署目录到 `https://huggingface.co/spaces/${HF_SPACE_ID}` 的 `main` 分支。
-6. Hugging Face Space 收到更新后自动重新构建 Docker 镜像。
+2. Actions 生成 Hugging Face 部署包，只包含运行所需的后端、前端源码、Dockerfile、依赖文件和 README。
+3. 如果 GitHub 配置了 `MODEL_URL`，Actions 会下载模型到部署包的 `static/saved_model/BILSTM_Att.pt`。
+4. Actions clone 目标 Hugging Face Space 仓库，再用 `rsync --checksum --delete` 做增量同步。
+5. 如果文件内容没有变化，Actions 会直接退出，不会提交和推送。
+6. 如果只有少量文件变化，Actions 只提交这些变化；图片、字体、模型等二进制资源按 Git LFS/Xet 跟踪。
+7. Hugging Face Space 收到新提交后自动重新构建 Docker 镜像。
 
-如果同步日志出现 `429`，通常是 Hugging Face Git/构建接口限流。workflow 会自动退避重试；如果重试耗尽，稍后在 GitHub Actions 手动重新运行即可。
+如果同步日志出现 `429`，通常是 Hugging Face Git/构建接口限流。workflow 会自动退避重试；新版同步流程会先比较差异，避免每次强推整包，从而减少 429 触发概率。如果重试耗尽，稍后在 GitHub Actions 手动重新运行即可。
 
 ### GitHub 自动发布 Release
 
