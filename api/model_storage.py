@@ -20,6 +20,13 @@ def _normalize_model_url(raw_url: str) -> str:
     return raw_url
 
 
+def _model_url_label(model_url: str) -> str:
+    parsed = urlparse(model_url)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+    return parsed.path or "MODEL_URL"
+
+
 def _cache_filename(model_url: str, default_model_path: str) -> str:
     parsed_name = Path(urlparse(model_url).path).name
     return parsed_name or Path(default_model_path).name
@@ -52,6 +59,8 @@ def _download_to_path(model_url: str, destination: Path) -> str:
 def resolve_model_path(default_model_path: str, logger=None) -> str:
     local_path = Path(default_model_path)
     if _valid_model_file(local_path):
+        if logger:
+            logger.info(f"prediction model source=local path={local_path}")
         return str(local_path)
 
     raw_model_url = os.getenv("MODEL_URL", "").strip()
@@ -63,12 +72,19 @@ def resolve_model_path(default_model_path: str, logger=None) -> str:
     model_url = _normalize_model_url(raw_model_url)
     cached_path = _runtime_cache_dir(default_model_path) / _cache_filename(model_url, default_model_path)
     if _valid_model_file(cached_path):
+        if logger:
+            logger.info(
+                f"prediction model source=MODEL_URL cache path={cached_path} url={_model_url_label(model_url)}"
+            )
         return str(cached_path)
 
     if logger:
-        logger.info(f"downloading model from MODEL_URL to {cached_path}")
+        logger.info(f"downloading model from MODEL_URL to {cached_path} url={_model_url_label(model_url)}")
     try:
-        return _download_to_path(model_url, cached_path)
+        downloaded_path = _download_to_path(model_url, cached_path)
+        if logger:
+            logger.info(f"prediction model source=MODEL_URL downloaded path={downloaded_path}")
+        return downloaded_path
     except Exception as exc:
         if logger:
             logger.error(f"MODEL_URL download failed, prediction model will be unavailable: {exc}")

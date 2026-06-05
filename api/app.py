@@ -258,6 +258,7 @@ def _load_prediction_model():
         loaded_model = BiLSTMModelWithAttention(input_size=32, hidden_size=1024, num_layers=2, output_size=1)
         loaded_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
         loaded_model.eval()
+        rich_logger.info(f"prediction model loaded path={model_path}")
         return loaded_model, model_path
     except Exception as e:
         rich_logger.error(f"model load failed: {e}")
