@@ -43,20 +43,32 @@ export function ChampionSelector({
     [champions, role]
   )
 
-  // 模糊搜索
+  const searchableChampions = useMemo(() => {
+    const grouped = new Map<string, Champion>()
+    champions.forEach((champion) => {
+      const existing = grouped.get(champion.en)
+      if (!existing || champion.role === role) {
+        grouped.set(champion.en, champion)
+      }
+    })
+    return Array.from(grouped.values())
+  }, [champions, role])
+
+  // 默认展示当前分路；输入搜索词后改为全英雄搜索，兼容职业赛非常规选角。
   const fuse = useMemo(
     () =>
-      new Fuse(roleChampions, {
+      new Fuse(searchableChampions, {
         keys: ['name', 'en', 'keywords'],
         isCaseSensitive: false,
         threshold: 0.4,
       }),
-    [roleChampions]
+    [searchableChampions]
   )
 
   const filteredChampions = useMemo(() => {
-    if (!searchQuery) return roleChampions
-    return fuse.search(searchQuery).map((result) => result.item)
+    const query = searchQuery.trim()
+    if (!query) return roleChampions
+    return fuse.search(query).map((result) => result.item)
   }, [searchQuery, fuse, roleChampions])
 
   const selectedChampionData = useMemo(
